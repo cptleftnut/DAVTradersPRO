@@ -1,0 +1,205 @@
+           setPrediction(data);
+           toast.success(`ML Prediktion: ${(data.predictedPrice as number).toFixed(2)}`);
+        } else {
+--
+        order.type,
+        order.price?.toFixed(2) || '0.00',
+        order.quantity || '0',
+        order.pnl.toFixed(2),
+        order.time.toISOString(),
+--
+  }
+  const avgHoldTimeStr = orderHistory.length === 0 ? '-' : (avgHoldSeconds > 60 ? `${(avgHoldSeconds/60).toFixed(1)}m` : `${avgHoldSeconds.toFixed(1)}s`);
+
+--
+      pair,
+      winRate: s.total > 0 ? ((s.wins / s.total) * 100).toFixed(1) + '%' : '0.0%',
+      trades: s.total,
+--
+                  const data = await res.json();
+                  const priceStr = parseFloat(data.price).toFixed(2);
+                  
+--
+            id: data.t,
+            price: parseFloat(data.p).toFixed(2),
+            quantity: parseFloat(data.q).toFixed(5),
+            time: data.T,
+--
+            volume: (parseFloat(data.v) * parseFloat(data.c)).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) + ' USDT',
+            high: parseFloat(data.h).toFixed(2),
+            low: parseFloat(data.l).toFixed(2)
+          });
+--
+                  price: entryPrice,
+                  quantity: parseFloat((tradeAllocation / entryPrice).toFixed(5))
+                });
+--
+              price: entryPrice,
+              quantity: parseFloat((tradeAllocation / entryPrice).toFixed(5))
+            });
+--
+                   <p className={`font-mono text-sm font-bold ${dailyStats.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {dailyStats.changePercent >= 0 ? '+' : ''}{dailyStats.changePercent.toFixed(2)}%
+                   </p>
+--
+              <span className="font-mono font-bold text-lg text-amber-400">
+                {winRate.toFixed(1)}%
+              </span>
+--
+                     ${currentPrice} 
+                     <span className="text-xs ml-2">({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)})</span>
+                  </p>
+--
+                                  itemStyle={{ color: '#0ea5e9' }}
+                                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
+                                  labelStyle={{ color: '#9ca3af' }}
+--
+                          <div className={`text-right flex flex-col items-end justify-center ${order.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                             <span className="font-bold">{order.pnl >= 0 ? '+' : ''}${Math.abs(order.pnl).toFixed(2)}</span>
+                             <span className="text-[10px] opacity-75 leading-none mt-0.5 font-sans">
+                                {order.pnl >= 0 ? '+' : ''}{((order.pnl / allocation) * 100).toFixed(2)}%
+                             </span>
+--
+                                    <div className="text-right font-mono text-sm tabular-nums">
+                                      <p className="text-emerald-400">{parseFloat(b.free).toFixed(4)} Free</p>
+                                      {parseFloat(b.locked) > 0 && <p className="text-gray-500 text-[10px]">{parseFloat(b.locked).toFixed(4)} Locked</p>}
+                                    </div>
+--
+                                    <div className="text-right font-mono text-sm tabular-nums">
+                                      <p className="text-amber-400">{parseFloat(e.totalAmount).toFixed(4)} Total</p>
+                                      <p className="text-gray-500 text-[10px]">APR: {(parseFloat(e.latestAnnualPercentageRate) * 100).toFixed(2)}%</p>
+                                    </div>
+--
+                                 <p className={`font-mono text-sm ${alert.triggered ? 'text-rose-400' : 'text-gray-300'}`}>
+                                    {alert.symbol || symbol} {alert.type === 'above' ? '≥' : '≤'} {alert.price.toFixed(2)}
+                                 </p>
+--
+                                 <p className="text-gray-500 mb-1">Target Entry</p>
+                                 <p className="text-gray-200 tabular-nums">${(parseFloat(currentPrice) * 0.995).toFixed(2)}</p>
+                              </div>
+--
+                                 <p className="text-gray-500 mb-1">Support Level</p>
+                                 <p className="text-gray-200 tabular-nums">${(parseFloat(currentPrice) * 0.98).toFixed(2)}</p>
+                              </div>
+--
+                              <p className={`text-xl font-mono font-bold tabular-nums ${backtestMetrics.totalReturnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                 {backtestMetrics.totalReturnPct >= 0 ? '+' : ''}{backtestMetrics.totalReturnPct.toFixed(2)}%
+                              </p>
+--
+                              <p className="text-xl font-mono text-rose-400 font-bold tabular-nums">
+                                 {backtestMetrics.maxDrawdownPct.toFixed(2)}%
+                              </p>
+--
+                              <p className="text-xl font-mono text-gray-200 font-bold tabular-nums">
+                                 {backtestMetrics.volatilityPct.toFixed(2)}%
+                              </p>
+--
+                              <p className={`text-xl font-mono font-bold tabular-nums ${backtestMetrics.sharpeRatio >= 1 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                 {backtestMetrics.sharpeRatio.toFixed(2)}
+                              </p>
+--
+                              <p className={`text-xl font-mono font-bold tabular-nums ${backtestMetrics.winRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                 {backtestMetrics.winRate.toFixed(1)}%
+                              </p>
+--
+                 <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Gevinst Rate (30d)</p>
+                 <p className="text-4xl font-mono text-emerald-400 tracking-tighter">{winRate.toFixed(1)}%</p>
+              </div>
+--
+                          itemStyle={{ color: '#10b981' }}
+                          formatter={(value: number) => [`$${value.toFixed(2)}`, 'Cumulative PnL']}
+                          labelStyle={{ color: '#9ca3af' }}
+--
+                                   {simProfitPct >= 0 ? '+' : ''}
+                                   {simProfitPct.toFixed(2)}%
+                                   <span className="text-[9px] opacity-80 pl-1 font-normal">
+                                      ({rawPnl >= 0 ? '+' : ''}${rawPnl.toFixed(2)})
+                                   </span>
+--
+                                <br/>
+                                PnL: <span className={day.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{day.pnl >= 0 ? '+' : ''}${Math.abs(day.pnl).toFixed(2)}</span>
+                                <br/>
+--
+                    <p className={`text-2xl font-mono tracking-tighter ${currentDrawdownPct > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {currentDrawdownPct.toFixed(2)}%
+                    </p>
+--
+                    <p className="text-2xl font-mono text-cyan-400 tracking-tighter">
+                      {sharpeRatio.toFixed(2)}
+                    </p>
+--
+                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Fee Amount</span>
+                     <span className="font-mono text-sm text-gray-300">${(order.fee || 0).toFixed(2)}</span>
+                  </div>
+--
+                  <span className={`font-mono font-bold ${order.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {order.pnl >= 0 ? '+' : ''}${Math.abs(order.pnl).toFixed(2)}
+                  </span>
+--
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Win Rate</span>
+                <span className="font-mono text-sm text-amber-500">{sessionSummaryData.winRate.toFixed(1)}%</span>
+              </div>
+--
+                <span className={`font-mono text-lg font-bold tracking-tighter ${sessionSummaryData.netPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {sessionSummaryData.netPnl >= 0 ? '+' : ''}${Math.abs(sessionSummaryData.netPnl).toFixed(2)}
+                </span>
+--
+Aktiv: ${symbol}
+Total PnL: ${activePnl >= 0 ? '+' : ''}$${activePnl.toFixed(2)}
+Antal Handler: ${activeTradesCount}
+Win Rate: ${activeWinRate.toFixed(1)}%
+
+--
+Aktiv: ${symbol}
+Total PnL: ${activePnl >= 0 ? '+' : ''}$${activePnl.toFixed(2)}
+Antal Handler: ${activeTradesCount}
+Win Rate: ${activeWinRate.toFixed(1)}%
+
+--
+                          <span className={`font-mono text-2xl font-black my-1 ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-450'}`}>
+                            {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
+                          </span>
+--
+                          </span>
+                          <span className="font-mono text-2xl font-black text-white my-1">{winRatePercentage.toFixed(1)}%</span>
+                          <span className="text-[9px] text-emerald-500 font-mono">
+--
+                          </span>
+                          <span className="font-mono text-2xl font-black text-gray-400 my-1">${totalFeesCount.toFixed(2)}</span>
+                          <span className="text-[9px] text-gray-500 font-mono">Samlede mæglergebyrer</span>
+--
+                          <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Bedste Trade</p>
+                          <p className="font-mono text-sm font-bold text-emerald-400 truncate">${maxBestTrade.toFixed(2)}</p>
+                        </div>
+--
+                          <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Værste Trade</p>
+                          <p className="font-mono text-sm font-bold text-rose-400 truncate">${maxWorstTrade.toFixed(2)}</p>
+                        </div>
+--
+                          <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Gennemsnit pr. Trade</p>
+                          <p className="font-mono text-sm font-bold text-white truncate">${averageTradeProfit.toFixed(2)}</p>
+                        </div>
+--
+                                    </td>
+                                    <td className="text-gray-300">${(t.price || 0).toFixed(2)}</td>
+                                    <td className="text-gray-400">{t.quantity}</td>
+                                    <td className="text-right text-gray-500">${(t.fee || 0).toFixed(3)}</td>
+                                    <td className={`text-right font-bold ${t.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                      {t.pnl >= 0 ? '+' : ''}${t.pnl ? t.pnl.toFixed(2) : '0.00'}
+                                    </td>
+--
+                                <span className={sum.totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-450'}>
+                                  {sum.totalPnl >= 0 ? '+' : ''}${sum.totalPnl?.toFixed(1)}
+                                </span>
+--
+                                <span>Trades: {sum.totalTrades || 0}</span>
+                                <span>Win Rate: {sum.winRate?.toFixed(0)}%</span>
+                              </div>
+--
+                              <p className={`font-mono font-bold text-sm ${selectedHistoricalSummary.totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-450'}`}>
+                                {selectedHistoricalSummary.totalPnl >= 0 ? '+' : ''}${selectedHistoricalSummary.totalPnl?.toFixed(2)}
+                              </p>
+--
+                              <p className="font-mono font-bold text-sm text-white">
+                                {selectedHistoricalSummary.winRate?.toFixed(1)}%
+                              </p>

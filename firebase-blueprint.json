@@ -1,0 +1,98 @@
+{
+  "collections": {
+    "systemState": {
+      "docId": "botConfig",
+      "fields": {
+        "isActive": "boolean",
+        "symbol": "string",
+        "allocation": "number",
+        "isLiveTrading": "boolean",
+        "takeProfit": "number",
+        "stopLoss": "number",
+        "strategy": "string",
+        "useTrailingStop": "boolean",
+        "dynamicSizing": "boolean",
+        "maxRiskPerTrade": "number",
+        "diversifySectors": "boolean",
+        "activePositions": "number",
+        "lastTradeTime": "number",
+        "tradeCounter": "number"
+      }
+    },
+    "wallet": {
+      "docId": "simulated",
+      "fields": {
+        "spot": "array",
+        "earn": "array"
+      }
+    },
+    "orderHistory": {
+      "fields": {
+        "id": "string",
+        "symbol": "string",
+        "type": "string",
+        "pnl": "number",
+        "time": "timestamp",
+        "duration": "string",
+        "price": "number",
+        "quantity": "number"
+      }
+    },
+    "journalEntries": {
+      "fields": {
+        "id": "string",
+        "date": "string",
+        "symbol": "string",
+        "type": "string",
+        "reasoning": "string"
+      }
+    },
+    "tradeNotes": {
+      "fields": {
+        "id": "string",
+        "symbol": "string",
+        "content": "string",
+        "time": "string",
+        "userId": "string"
+      }
+    },
+    "tradingNotes": {
+      "fields": {
+        "userId": "string",
+        "symbol": "string",
+        "content": "string",
+        "updatedAt": "timestamp"
+      }
+    },
+    "userSettings": {
+      "fields": {
+        "timeframe": "string",
+        "strategy": "string",
+        "theme": "string",
+        "updatedAt": "timestamp"
+      }
+    },
+    "priceAlerts": {
+      "fields": {
+        "userId": "string",
+        "symbol": "string",
+        "targetPrice": "number",
+        "direction": "string",
+        "isActive": "boolean",
+        "createdAt": "timestamp"
+      }
+    },
+    "dailySummaries": {
+      "fields": {
+        "userId": "string",
+        "symbol": "string",
+        "date": "string",
+        "summaryText": "string",
+        "totalPnl": "number",
+        "totalTrades": "number",
+        "winRate": "number",
+        "createdAt": "timestamp"
+      }
+    }
+  }
+}

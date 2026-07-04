@@ -1,0 +1,6 @@
+{
+  "name": "DAVs",
+  "description": "Intelligent automated stock trading dashboard.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
