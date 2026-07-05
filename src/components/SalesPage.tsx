@@ -180,7 +180,7 @@ export function SalesPage({ onGoToPlatform }: { onGoToPlatform: () => void }) {
                     </div>
                     <div className="flex-1 space-y-4 overflow-hidden font-mono text-[11px] sm:text-xs relative z-10">
                       <div className="flex justify-between items-center p-2 rounded bg-white/5 border border-white/5">
-                        <span className="text-emerald-400 font-bold flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> [BUY] SOL/USDT</span>
+                        <span className="text-emerald-400 font-bold flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> [BUY] SOL/USDC</span>
                         <span className="text-white">142.50</span>
                       </div>
                       <div className="flex justify-between items-center p-2 rounded bg-white/5 border border-white/5">

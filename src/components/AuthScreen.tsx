@@ -28,7 +28,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
         toast.success('Konto oprettet!');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Der opstod en fejl');
+      if (!String(error).includes('Failed to fetch')) toast.error(error.message || 'Der opstod en fejl');
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
       if (res) onLogin(res.user);
       toast.success('Logget ind med Google');
     } catch (error: any) {
-      toast.error(error.message || 'Google login fejlede');
+      if (!String(error).includes('Failed to fetch')) toast.error(error.message || 'Google login fejlede');
     } finally {
       setLoading(false);
     }

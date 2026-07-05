@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ScannerChatBubble } from './ScannerChatBubble';
 
 const TOP_CRYPTO_PAIRS = [
-  'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 
+  'BTCUSDT', 'ETHUSDT', 'SOLUSDC', 'BNBUSDT', 'XRPUSDT', 
   'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT', 'LTCUSDT', 
   'SHIBUSDT', 'BCHUSDT', 'DOTUSDT', 'NEARUSDT', 'UNIUSDT', 
   'ATOMUSDT', 'XLMUSDT', 'APTUSDT', 'FILUSDT', 'RNDRUSDT'

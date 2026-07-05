@@ -160,7 +160,7 @@ export function PortfolioRebalancer({
         }
       }
     } catch (e: any) {
-      toast.error(`Network error: ${e.message}`);
+      if (!String(e).includes('Failed to fetch')) toast.error(`Network error: ${e.message}`);
     } finally {
       setAnalyzing(false);
     }

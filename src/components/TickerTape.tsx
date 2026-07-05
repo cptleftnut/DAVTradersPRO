@@ -49,7 +49,7 @@ export const TickerTape = React.memo(function TickerTape() {
         {/* Double the array for seamless infinite scrolling loop */}
         {[...tickers, ...tickers].map((ticker, i) => (
           <div key={`${ticker.symbol}-${i}`} className="flex items-center space-x-2">
-            <span className="text-gray-300 font-bold font-mono text-xs">{ticker.symbol.replace('USDT', '')}/USDT</span>
+            <span className="text-gray-300 font-bold font-mono text-xs">{ticker.symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '')}/{ticker.symbol.endsWith('USDC') ? 'USDC' : (ticker.symbol.endsWith('USDT') ? 'USDT' : (ticker.symbol.endsWith('BTC') ? 'BTC' : (ticker.symbol.endsWith('ETH') ? 'ETH' : (ticker.symbol.endsWith('BNB') ? 'BNB' : (ticker.symbol.endsWith('EUR') ? 'EUR' : 'USDT')))))}</span>
             <span className="text-white font-mono text-xs">${ticker.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
             <span className={`flex items-center text-[10px] font-bold ${ticker.priceChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {ticker.priceChangePercent >= 0 ? <TrendingUp className="size-3 mr-0.5" /> : <TrendingDown className="size-3 mr-0.5" />}

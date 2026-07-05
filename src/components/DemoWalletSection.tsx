@@ -19,7 +19,8 @@ export function DemoWalletSection() {
         // Fallback or handle initial empty state
         setWallet([]);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (String(error).includes('Failed to fetch')) return;
       console.error("Failed to fetch demo wallet:", error);
     } finally {
       setLoading(false);

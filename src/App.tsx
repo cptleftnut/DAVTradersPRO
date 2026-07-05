@@ -1,16 +1,79 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { AuthScreen } from "./components/AuthScreen";
 import { SalesPage } from "./components/SalesPage";
 import { BinanceTradingPanel } from "./components/BinanceTradingPanel";
+import { OrderBook } from "./components/OrderBook";
+import { PortfolioDistribution } from "./components/PortfolioDistribution";
+import { PerformanceTrend } from "./components/PerformanceTrend";
+import { MarketOverview } from "./components/MarketOverview";
+import { MarketSummary } from "./components/MarketSummary";
+import { DailyPerformanceMetric } from "./components/DailyPerformanceMetric";
+import { CumulativeProfitChart } from "./components/CumulativeProfitChart";
+import { TradeHistoryTable } from "./components/TradeHistoryTable";
+import { GeminiChat } from "./components/GeminiChat";
 import { initAuth } from "./lib/auth";
 import { User } from "firebase/auth";
 import { Toaster, toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Palette, GripVertical, RotateCcw } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { motion } from "motion/react";
+
+function SortableItem({ id, children, ...props }: { id: string, children: React.ReactNode, [key: string]: any }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <motion.div ref={setNodeRef} style={style} className="relative transition-all duration-300" layout>
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 z-10 cursor-grab p-1 bg-gray-800 rounded-md hover:bg-gray-700 transition-colors"
+      >
+        <GripVertical className="size-4 text-gray-400" />
+      </div>
+      {children}
+    </motion.div>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const DEFAULT_ITEMS = ['BinanceTradingPanel', 'PerformanceTrend', 'PortfolioDistribution', 'OrderBook', 'TradeHistoryTable'];
+  const [items, setItems] = useState(DEFAULT_ITEMS);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     const unsubscribe = initAuth(
@@ -27,14 +90,28 @@ export default function App() {
   }, []);
 
   const addLog = (msg: string, type: 'info' | 'warn' | 'error' = 'info') => {
+    if (String(msg).includes('Failed to fetch')) return;
     if (type === 'error') toast.error(msg);
     else if (type === 'warn') toast.warning(msg);
     else toast.info(msg);
   };
 
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      setItems((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <Loader2 className="size-10 text-amber-500 animate-spin" />
       </div>
     );
@@ -47,8 +124,33 @@ export default function App() {
     return <SalesPage onGoToPlatform={() => setShowAuth(true)} />;
   }
 
+  const componentsMap: Record<string, React.ReactNode> = {
+    DailyPerformanceMetric: <DailyPerformanceMetric />,
+    CumulativeProfitChart: <CumulativeProfitChart />,
+    MarketOverview: <MarketOverview />,
+    BinanceTradingPanel: <BinanceTradingPanel addLog={addLog} />,
+    PerformanceTrend: <PerformanceTrend />,
+    PortfolioDistribution: <PortfolioDistribution />,
+    OrderBook: <OrderBook />,
+    TradeHistoryTable: <TradeHistoryTable />
+  };
+
   return (
-    <div className="min-h-screen bg-[#0b0e14] font-sans text-gray-100">
+    <div className="min-h-screen bg-gray-950 font-sans text-gray-100">
+      <button 
+        onClick={() => setItems(DEFAULT_ITEMS)}
+        className="fixed top-4 right-28 z-[100] p-2 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white"
+        title="Reset Layout"
+      >
+        <RotateCcw className="size-5" />
+      </button>
+      <button 
+        onClick={() => document.documentElement.classList.toggle('light-mode')}
+        className="fixed top-4 right-4 z-[100] p-2 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white"
+        title="Toggle Theme"
+      >
+        <Palette className="size-5" />
+      </button>
       <Toaster 
         position="top-right" 
         theme="dark" 
@@ -77,7 +179,26 @@ export default function App() {
           }
         }}
       />
-      <BinanceTradingPanel addLog={addLog} />
+      <MarketSummary />
+      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext 
+            items={items}
+            strategy={verticalListSortingStrategy}
+          >
+            {items.map(id => (
+              <SortableItem key={id} id={id}>
+                {componentsMap[id]}
+              </SortableItem>
+            ))}
+          </SortableContext>
+        </DndContext>
+      </div>
+      <GeminiChat />
     </div>
   );
 }

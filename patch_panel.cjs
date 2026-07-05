@@ -1,15 +1,21 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/components/BinanceTradingPanel.tsx', 'utf8');
+let content = fs.readFileSync('src/components/BinanceTradingPanel.tsx', 'utf8');
 
-// Add state
-if (!code.includes('const [unpaidFee, setUnpaidFee] = useState(0)')) {
-  code = code.replace(
-    'const [isBotActive, setIsBotActive] = useState(false);',
-    'const [isBotActive, setIsBotActive] = useState(false);\n  const [unpaidFee, setUnpaidFee] = useState(0);'
-  );
-}
+// Update widget order default and parse logic
+content = content.replace(
+  `if (parsed.length === 6) return parsed;`,
+  `if (parsed && Array.isArray(parsed)) { if (!parsed.includes('orderBook')) parsed.push('orderBook'); return parsed; }`
+);
 
-// Add state updates
-code = code.replace(/setIsBotActive\(state\.isActive\);/g, "setIsBotActive(state.isActive);\n          if (state.unpaidFee !== undefined) setUnpaidFee(state.unpaidFee);");
+content = content.replace(
+  `return ['agentControl', 'walletSummary', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];`,
+  `return ['agentControl', 'walletSummary', 'orderBook', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];`
+);
 
-fs.writeFileSync('src/components/BinanceTradingPanel.tsx', code);
+// Import OrderBook
+content = content.replace(
+  `import { PortfolioRebalancer } from './PortfolioRebalancer';`,
+  `import { PortfolioRebalancer } from './PortfolioRebalancer';\nimport { OrderBook } from './OrderBook';`
+);
+
+fs.writeFileSync('src/components/BinanceTradingPanel.tsx', content);

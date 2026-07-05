@@ -256,6 +256,7 @@ async function loadWallet() {
     if (docSnap.exists) {
       simulatedWallet = docSnap.data() as SimulatedWallet;
       console.log("[Firebase] Wallet state loaded successfully.");
+      console.log("[Firebase] Wallet state loaded successfully.");
     } else {
       console.log("[Firebase] Simulated wallet not found, creating default...");
       await setDoc(docRef, simulatedWallet);
@@ -302,10 +303,10 @@ interface SimulatedWallet {
 
 let simulatedWallet: SimulatedWallet = {
   spot: [
-    { asset: 'USDT', free: '10.00000000', locked: '0.00000000' },
+    { asset: 'USDT', free: '0.00000000', locked: '0.00000000' },
     { asset: 'BTC', free: '0.00000000', locked: '0.00000000' },
     { asset: 'ETH', free: '0.00000000', locked: '0.00000000' },
-    { asset: 'SOL', free: '0.00000000', locked: '0.00000000' },
+    { asset: 'SOL', free: '0.35000000', locked: '0.00000000' },
     { asset: 'BNB', free: '0.00000000', locked: '0.00000000' },
     { asset: 'DOGE', free: '0.00000000', locked: '0.00000000' }
   ],
@@ -453,9 +454,9 @@ async function stopBot() {
   }
 }
 
-async function executeTradeInternal(symbol: string, side: string, allocation: number) {
-    const apiKey = botState.userApiKey || process.env.BINANCE_API_KEY;
-    const apiSecret = botState.userApiSecret || process.env.BINANCE_API_SECRET;
+async function executeTradeInternal(symbol: string, side: string, allocation: number, customApiKey?: string, customApiSecret?: string) {
+    const apiKey = customApiKey || botState.userApiKey || process.env.BINANCE_API_KEY;
+    const apiSecret = customApiSecret || botState.userApiSecret || process.env.BINANCE_API_SECRET;
 
     if (!apiKey || !apiSecret) {
       throw new Error('BINANCE_API_KEY or BINANCE_API_SECRET is not set');
@@ -469,11 +470,11 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
         throw new Error("Minimum order size on Binance is 10 USDT");
     }
     
-    const quantity = (allocation / currentPrice).toFixed(5);
+    // const quantity = (allocation / currentPrice).toFixed(5);
     
     let orderData;
     try {
-      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quantity });
+      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: allocation.toString() });
       orderData = orderRes.data;
     } catch (err: any) {
       console.error("DEBUG: Binance raw error:", err);
@@ -521,7 +522,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
     const fetchStockTick = async () => {
       if (!botState.isActive) return;
       try {
-        const rawSymbol = symbol.toUpperCase().replace(/USDT$|USDC$|BTC$|ETH$/, '');
+        const rawSymbol = symbol.toUpperCase().replace(/USDT$|USDC$|BTC$|ETH$|BNB$|EUR$/, '');
         const quote: any = await yahooFinance.quote(rawSymbol);
         const currentP = quote.regularMarketPrice || quote.preMarketPrice || 0;
         
@@ -888,8 +889,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                  const feeAmount = (allocUsed * 0.001);
                  const netPnl = rawPnl - feeAmount * 2;
                  
-                 const qAsset = (entryExtended as any).quoteAsset || 'USDT';
-                 const aName = (entryExtended as any).assetName || botState.symbol.replace(/USDT|USDC/g, '');
+                 const qAsset = (entryExtended as any).quoteAsset || (botState.symbol.endsWith('USDC') ? 'USDC' : (botState.symbol.endsWith('USDT') ? 'USDT' : (botState.symbol.endsWith('BTC') ? 'BTC' : (botState.symbol.endsWith('ETH') ? 'ETH' : (botState.symbol.endsWith('BNB') ? 'BNB' : (botState.symbol.endsWith('EUR') ? 'EUR' : 'USDT'))))));
+                 const aName = (entryExtended as any).assetName || botState.symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
                  simulateSellAsset(aName, qAsset, allocUsed, netPnl, entry.price);
   
                  botState.lastTradeTime = now;
@@ -1303,7 +1304,7 @@ app.get('/api/ticker-24h', async (req, res) => {
     
     // Auto-append USDT if it's likely crypto and doesn't have a pairing
     if (symbolStr.length >= 2 && !symbolStr.endsWith('USDT') && !symbolStr.endsWith('USDC') && !symbolStr.endsWith('BTC') && !symbolStr.endsWith('ETH')) {
-       symbolStr += 'USDT';
+       symbolStr += 'USDT'; // keep default USDT
     }
 
     // Try Binance
@@ -1339,7 +1340,7 @@ app.get('/api/ticker-1h', async (req, res) => {
     
     // Auto-append USDT if it's likely crypto and doesn't have a pairing
     if (symbolStr.length >= 2 && !symbolStr.endsWith('USDT') && !symbolStr.endsWith('USDC') && !symbolStr.endsWith('BTC') && !symbolStr.endsWith('ETH')) {
-       symbolStr += 'USDT';
+       symbolStr += 'USDT'; // keep default USDT
     }
 
     // Try Binance
@@ -1366,23 +1367,32 @@ app.get('/api/ticker-1h', async (req, res) => {
   }
 });
 
-app.post('/api/demo/reset-wallet', (req, res) => {
+app.post("/api/demo/reset-wallet", (req, res) => {
    simulatedWallet.spot = [
-     { asset: 'USDT', free: '10.00000000', locked: '0.00000000' },
-     { asset: 'BTC', free: '0.00000000', locked: '0.00000000' },
-     { asset: 'ETH', free: '0.00000000', locked: '0.00000000' },
-     { asset: 'SOL', free: '0.00000000', locked: '0.00000000' },
-     { asset: 'BNB', free: '0.00000000', locked: '0.00000000' },
-     { asset: 'DOGE', free: '0.00000000', locked: '0.00000000' }
+     { asset: "USDT", free: "0.00000000", locked: "0.00000000" },
+     { asset: "BTC", free: "0.00000000", locked: "0.00000000" },
+     { asset: "ETH", free: "0.00000000", locked: "0.00000000" },
+     { asset: "SOL", free: "0.35000000", locked: "0.00000000" },
+     { asset: "BNB", free: "0.00000000", locked: "0.00000000" },
+     { asset: "DOGE", free: "0.00000000", locked: "0.00000000" },
+     { asset: "SPY", free: "0.00000000", locked: "0.00000000" },
+     { asset: "TLT", free: "0.00000000", locked: "0.00000000" }
    ];
    botState.orderHistory = [];
    botState.activePositionsList = [];
    botState.tradeCounter = 0;
-   
+   botState.activePositions = 0;
    saveWallet();
    saveBotState();
-
    res.json({ success: true, wallet: simulatedWallet });
+});
+app.post("/api/bot/reset-performance", (req, res) => {
+   botState.orderHistory = [];
+   botState.activePositionsList = [];
+   botState.tradeCounter = 0;
+   botState.activePositions = 0;
+   saveBotState();
+   res.json({ success: true });
 });
 
 app.post('/api/wallet/update', async (req, res) => {
@@ -1431,7 +1441,7 @@ app.get('/api/market/scan', async (req, res) => {
        const data = await response.json();
        
        // Filter for USDT pairs only, excluding leveraged tokens
-       const usdtPairs = data.filter((p: any) => p.symbol.endsWith('USDT') && !p.symbol.includes('UPUSDT') && !p.symbol.includes('DOWNUSDT'));
+       const usdtPairs = data.filter((p: any) => (p.symbol.endsWith('USDT') || p.symbol.endsWith('USDC')) && !p.symbol.includes('UPUSDT') && !p.symbol.includes('DOWNUSDT') && !p.symbol.includes('UPUSDC') && !p.symbol.includes('DOWNUSDC'));
        
        // Sort by volume to get top 50 most active pairs
        const topByVolume = usdtPairs.sort((a: any, b: any) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0, 50);
@@ -2409,7 +2419,7 @@ async function executePaperTrade(symbol: string, side: 'BUY' | 'SELL', allocatio
   }
 
   const now = Date.now();
-  const quoteAsset = symbol.endsWith('USDC') ? 'USDC' : 'USDT';
+  const quoteAsset = symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))));
   const assetName = symbol.replace(quoteAsset, '');
 
   if (side === 'BUY') {
@@ -2527,7 +2537,7 @@ app.post("/api/trade/execute", async (req, res) => {
 
     if (isLiveTrading && apiKey && apiSecret) {
       // Real trade
-      const result = await executeTradeInternal(symbol, side, allocation);
+      const result = await executeTradeInternal(symbol, side, allocation, apiKey, apiSecret);
       res.json({ success: true, result });
     } else {
       // Paper trade
@@ -2612,7 +2622,7 @@ function generateBinanceMockData(endpoint: string, query: any): any {
     return [
       { symbol: "BTCUSDT", priceChange: "1230.5", priceChangePercent: "1.8", lastPrice: "68350.20", weightedAvgPrice: "68000", prevClosePrice: "67119.70", bidPrice: "68340.00", askPrice: "68350.00", volume: "35800", quoteVolume: "2450000000", openPrice: "67119.7", highPrice: "69000", lowPrice: "66500", count: 852000 },
       { symbol: "ETHUSDT", priceChange: "-50.4", priceChangePercent: "-1.2", lastPrice: "3490.15", weightedAvgPrice: "3510", prevClosePrice: "3540.55", bidPrice: "3489.90", askPrice: "3490.15", volume: "315000", quoteVolume: "1100000000", openPrice: "3540.5", highPrice: "3585", lowPrice: "3450", count: 421000 },
-      { symbol: "SOLUSDT", priceChange: "12.3", priceChangePercent: "8.5", lastPrice: "156.70", weightedAvgPrice: "150", prevClosePrice: "144.40", bidPrice: "156.60", askPrice: "156.75", volume: "5420000", quoteVolume: "850000000", openPrice: "144.4", highPrice: "160", lowPrice: "142", count: 320000 },
+      { symbol: "SOLUSDC", priceChange: "12.3", priceChangePercent: "8.5", lastPrice: "156.70", weightedAvgPrice: "150", prevClosePrice: "144.40", bidPrice: "156.60", askPrice: "156.75", volume: "5420000", quoteVolume: "850000000", openPrice: "144.4", highPrice: "160", lowPrice: "142", count: 320000 },
       { symbol: "BNBUSDT", priceChange: "5.2", priceChangePercent: "0.8", lastPrice: "585.30", weightedAvgPrice: "582", prevClosePrice: "580.10", bidPrice: "585.10", askPrice: "585.40", volume: "598000", quoteVolume: "350000000", openPrice: "580.1", highPrice: "592", lowPrice: "575", count: 180000 },
       { symbol: "XRPUSDT", priceChange: "0.01", priceChangePercent: "1.5", lastPrice: "0.52", weightedAvgPrice: "0.515", prevClosePrice: "0.51", bidPrice: "0.519", askPrice: "0.521", volume: "480000000", quoteVolume: "250000000", openPrice: "0.51", highPrice: "0.53", lowPrice: "0.505", count: 95000 },
       { symbol: "ADAUSDT", priceChange: "-0.02", priceChangePercent: "-3.4", lastPrice: "0.45", weightedAvgPrice: "0.46", prevClosePrice: "0.47", bidPrice: "0.449", askPrice: "0.451", volume: "266000000", quoteVolume: "120000000", openPrice: "0.47", highPrice: "0.48", lowPrice: "0.445", count: 68000 },
@@ -2626,7 +2636,7 @@ function generateBinanceMockData(endpoint: string, query: any): any {
     const prices: { [key: string]: string } = {
       BTCUSDT: "68350.20",
       ETHUSDT: "3490.15",
-      SOLUSDT: "156.70",
+      SOLUSDC: "156.70",
       BNBUSDT: "585.30",
       XRPUSDT: "0.52",
       ADAUSDT: "0.45",
@@ -2642,7 +2652,7 @@ function generateBinanceMockData(endpoint: string, query: any): any {
     const basePrices: { [key: string]: number } = {
       BTCUSDT: 68000,
       ETHUSDT: 3500,
-      SOLUSDT: 155,
+      SOLUSDC: 155,
       BNBUSDT: 580,
       XRPUSDT: 0.52,
       ADAUSDT: 0.45,
@@ -2779,6 +2789,53 @@ async function startServer() {
   // Load persistent state
   await loadBotState();
   await loadWallet();
+
+
+
+  app.get("/api/wallet", async (req, res) => {
+    try {
+      const credentials = await getBinanceCredentials(null, req.headers);
+      const client = new Spot(credentials.apiKey, credentials.apiSecret);
+      const response = await client.account();
+      res.json(response.data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch wallet data" });
+    }
+  });
+
+  app.get("/api/market-data", async (req, res) => {
+    try {
+      const response = await fetch("https://api.binance.com/api/v3/ticker/24hr");
+      if (!response.ok) {
+        throw new Error("API rate limit or error");
+      }
+      const data = await response.json();
+      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDC", "BNBUSDT"];
+      const filtered = data.filter((t: any) => symbols.includes(t.symbol));
+      res.json(filtered);
+    } catch (error) {
+      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDC", "BNBUSDT"];
+      const fallback = symbols.map(sym => ({
+          symbol: sym,
+          priceChangePercent: ((Math.random() - 0.5) * 5).toFixed(2),
+          quoteVolume: (Math.random() * 1000000000).toString()
+      }));
+      res.json(fallback);
+    }
+  });
+
+  app.post("/api/gemini", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      const response = await getAiClient().models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: prompt,
+      });
+      res.json({ response: response.text });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch Gemini response" });
+    }
+  });
 
   if (process.env.NODE_ENV !== "production") {
     console.log("Setting up Vite middleware for development...");

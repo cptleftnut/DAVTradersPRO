@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, FormEvent, DragEvent, useMemo } from 'react';
-import { Lock, Bot, Zap, Play, Square, TrendingUp, TrendingDown, Anchor, Activity, RefreshCw, History, X, Shield, Info, Wallet, Calendar, Bell, Download, Newspaper, Mic, Search, ChevronDown, GitCompare, LineChart, BookOpen, ShieldCheck, Rocket, Globe, Loader2, GripVertical, ChevronLeft, ChevronRight, ChevronUp, LayoutGrid, BrainCircuit, Palette } from 'lucide-react';
+import { Lock, Bot, Zap, Play, Square, TrendingUp, TrendingDown, Anchor, Activity, RefreshCw, History, X, Shield, Info, Wallet, Calendar, Bell, Download, Newspaper, Mic, Search, ChevronDown, GitCompare, LineChart, BookOpen, ShieldCheck, Rocket, Globe, Loader2, GripVertical, ChevronLeft, ChevronRight, ChevronUp, LayoutGrid, BrainCircuit, Palette, PieChart as PieChartIcon } from 'lucide-react';
+import { useFirestorePersistence } from '../lib/persistence';
 import { TradeConfirmationModal } from './TradeConfirmationModal';
 import { AiAutopilot } from './AiAutopilot';
 import { MacroTerminal } from './MacroTerminal';
@@ -15,12 +16,17 @@ import { speakTradeAction } from '../lib/speech';
 import { AiProModal } from './AiProModal';
 import { WalletSummaryWidget } from './WalletSummaryWidget';
 import { PortfolioSummary } from './PortfolioSummary';
-import { PortfolioPerformanceChart } from './PortfolioPerformanceChart';
-import { UpgradesStoreWidget } from './UpgradesStoreWidget';
 import { TickerTape } from './TickerTape';
 import { P2PPaymentModal } from './P2PPaymentModal';
 import { CorrelationMatrix } from './CorrelationMatrix';
 import { DesignCenter } from './DesignCenter';
+import { StrategyBacktester } from './StrategyBacktester';
+import { StockChart } from './StockChart';
+import { NewsFeed } from './NewsFeed';
+import { GeminiChat } from './GeminiChat';
+import { PortfolioRebalancer } from './PortfolioRebalancer';
+import { OrderBook } from './OrderBook';
+import { PortfolioDistribution } from './PortfolioDistribution';
 
 interface Trade {
   id: number;
@@ -54,20 +60,31 @@ export interface BotOrder {
 }
 
 const AVAILABLE_PAIRS = [
+  // Krypto
   { value: "BTCUSDT", label: "BTC/USDT (Bitcoin)" },
-  { value: "ETHUSDT", label: "ETH/USDT (Ethereum)" },
-  { value: "SOLUSDT", label: "SOL/USDT (Solana)" },
-  { value: "BNBUSDT", label: "BNB/USDT (Binance Coin)" },
-  { value: "DOGEUSDT", label: "DOGE/USDT (Dogecoin)" },
-  { value: "AVAXUSDT", label: "AVAX/USDT (Avalanche)" },
-  { value: "LINKUSDT", label: "LINK/USDT (Chainlink)" },
-  { value: "XRPUSDT", label: "XRP/USDT (Ripple)" },
-  { value: "ADAUSDT", label: "ADA/USDT (Cardano)" },
   { value: "BTCUSDC", label: "BTC/USDC (Bitcoin)" },
+  { value: "ETHUSDT", label: "ETH/USDT (Ethereum)" },
   { value: "ETHUSDC", label: "ETH/USDC (Ethereum)" },
   { value: "SOLUSDC", label: "SOL/USDC (Solana)" },
-  { value: "BNBUSDC", label: "BNB/USDC (Binance Coin)" },
-  { value: "DOGEUSDC", label: "DOGE/USDC (Dogecoin)" },
+  { value: "SOLUSDT", label: "SOL/USDT (Solana)" },
+  { value: "SOLBTC", label: "SOL/BTC (Solana)" },
+  { value: "SOLEUR", label: "SOL/EUR (Solana)" },
+  { value: "SOLBNB", label: "SOL/BNB (Solana)" },
+  { value: "BNBUSDT", label: "BNB/USDT (Binance Coin)" },
+  { value: "DOGEUSDT", label: "DOGE/USDT (Dogecoin)" },
+  { value: "USDCUSDT", label: "USDC/USDT (USDC)" },
+  
+  // ETF'er
+  { value: "SPYUSDT", label: "SPY (S&P 500 ETF)" },
+  { value: "QQQUSDT", label: "QQQ (Nasdaq 100 ETF)" },
+  { value: "VOOUSDT", label: "VOO (Vanguard S&P 500 ETF)" },
+  { value: "ARKKUSDT", label: "ARKK (Innovation ETF)" },
+
+  // Obligationer
+  { value: "TLTUSDT", label: "TLT (20+ Year Treasury Bond)" },
+  { value: "BNDUSDT", label: "BND (Total Bond Market)" },
+  { value: "AGGUSDT", label: "AGG (Core US Aggregate Bond)" },
+  { value: "LQDUSDT", label: "LQD (Inv. Grade Corporate)" },
 ];
 
 export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'info'|'warn'|'error') => void }) {
@@ -82,12 +99,14 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.length === 8) return parsed;
-        if (parsed.length === 7) return [...parsed, 'upgradesStore'];
-        if (parsed.length === 6) return [...parsed, 'walletSummary'];
+        if (parsed && Array.isArray(parsed)) { 
+     if (!parsed.includes('orderBook')) parsed.push('orderBook'); 
+     if (!parsed.includes('portfolioDistribution')) parsed.push('portfolioDistribution'); 
+     return parsed; 
+  }
       } catch (e) {}
     }
-    return ['agentControl', 'walletSummary', 'upgradesStore', 'realtimeTabs', 'aiPerformance', 'portfolioGrowth', 'risikostyring', 'maeglerforbindelse'];
+    return ['agentControl', 'walletSummary', 'portfolioDistribution', 'orderBook', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];
   });
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -133,7 +152,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   };
 
   const resetWidgetOrder = () => {
-    const defaultOrder = ['agentControl', 'walletSummary', 'upgradesStore', 'realtimeTabs', 'aiPerformance', 'portfolioGrowth', 'risikostyring', 'maeglerforbindelse'];
+    const defaultOrder = ['agentControl', 'walletSummary', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];
     setWidgetOrder(defaultOrder);
     localStorage.setItem('binance_widget_order', JSON.stringify(defaultOrder));
     toast.success("Layout nulstillet til standard!");
@@ -144,10 +163,10 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     walletSummary: "Wallet Balance Summary",
     realtimeTabs: "Realtid Datatavle & Feeds",
     aiPerformance: "AI Performance & Statistik",
-    portfolioGrowth: "Portfolio Vækst (30 Dage)",
+
     risikostyring: "Avanceret Risikoanalyse",
     maeglerforbindelse: "Mægler API Forbindelse",
-    upgradesStore: "Premium Butik & Upgrades",
+
 
   };
 
@@ -190,6 +209,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   
   const [txid, setTxid] = useState('');
   const [showP2PModal, setShowP2PModal] = useState(false);
+  const [p2pAmount, setP2PAmount] = useState<number>(0);
+  const [p2pReference, setP2pReference] = useState<string>('');
 
 
 
@@ -288,7 +309,34 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const [enableDCA, setEnableDCA] = useState(false);
   const [dcaIntervalHours, setDcaIntervalHours] = useState(24);
   const [dcaAllocation, setDcaAllocation] = useState(1.0);
-  const [panelTab, setPanelTab] = useState<'dashboard' | 'live' | 'history' | 'wallet' | 'alerts' | 'analyses' | 'compare' | 'backtest' | 'journal' | 'scanner' | 'autopilot' | 'macro' | 'correlation' | 'design'>('dashboard');
+  const [stockTicker, setStockTicker] = useState('AAPL');
+  const [mockStockData, setMockStockData] = useState<{name: string, value: number, volume?: number}[]>([]);
+
+  useEffect(() => {
+    // Generate some random stock data for demonstration
+    const data = [];
+    let price = 150 + Math.random() * 50;
+    const now = new Date();
+    for (let i = 0; i < 100; i++) {
+       const time = new Date(now.getTime() - (100 - i) * 3600000);
+       price = price * (1 + (Math.random() - 0.48) * 0.05);
+       data.push({
+          name: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          value: parseFloat(price.toFixed(2)),
+          volume: Math.floor(Math.random() * 10000)
+       });
+    }
+    setMockStockData(data);
+  }, [stockTicker]);
+  const [panelTab, setPanelTab] = useState<'dashboard' | 'live' | 'history' | 'wallet' | 'alerts' | 'analyses' | 'compare' | 'backtest' | 'journal' | 'scanner' | 'autopilot' | 'macro' | 'correlation' | 'design' | 'stocks'>('dashboard');
+  const [layoutMode, setLayoutMode] = useState<'detailed' | 'compact'>(() => {
+    return (localStorage.getItem('binance_panel_layout_mode') as 'detailed' | 'compact') || 'detailed';
+  });
+  const [isBentoGridMinimized, setIsBentoGridMinimized] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('binance_panel_layout_mode', layoutMode);
+  }, [layoutMode]);
   const [activeCategory, setActiveCategory] = useState<'overblik' | 'analyse' | 'strategi'>('overblik');
   const [activeTheme, setActiveTheme] = useState<'obsidian' | 'alpine' | 'sage'>(() => {
     return (localStorage.getItem('binance_panel_theme') as 'obsidian' | 'alpine' | 'sage') || 'obsidian';
@@ -296,6 +344,26 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const [navStyle, setNavStyle] = useState<'grouped' | 'sidebar' | 'classic'>(() => {
     return (localStorage.getItem('binance_panel_nav_style') as 'grouped' | 'sidebar' | 'classic') || 'grouped';
   });
+
+  const { data: botConfig, update: updateBotConfig } = useFirestorePersistence('systemState', 'botConfig', {
+    isActive: false,
+    symbol: 'BTCUSDT',
+    allocation: 2,
+    stopLoss: 5,
+    takeProfit: 10
+  });
+
+  useEffect(() => {
+    if (botConfig.symbol !== symbol) setSymbol(botConfig.symbol);
+    if (botConfig.allocation !== allocation) setAllocation(botConfig.allocation);
+    if (botConfig.stopLoss !== stopLoss) setStopLoss(botConfig.stopLoss);
+    if (botConfig.takeProfit !== takeProfit) setTakeProfit(botConfig.takeProfit);
+    if (botConfig.isActive !== isBotActive) setIsBotActive(botConfig.isActive);
+  }, [botConfig.symbol, botConfig.allocation, botConfig.stopLoss, botConfig.takeProfit, botConfig.isActive]);
+
+  useEffect(() => {
+    updateBotConfig({ symbol, allocation, stopLoss, takeProfit, isActive: isBotActive });
+  }, [symbol, allocation, stopLoss, takeProfit, isBotActive]);
 
   const handleThemeChange = (theme: 'obsidian' | 'alpine' | 'sage') => {
     setActiveTheme(theme);
@@ -685,7 +753,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const [analysesData] = useState([
     { pair: 'BTC/USDT', confidence: 94, headline: 'Bitcoin Breaks Out Above Moving Average', summary: 'On-chain metrics suggest massive accumulation by whales, setting the stage for a strong push towards resistance.', date: 'I dag, 08:30', author: 'Quant AI', impact: 'Bullish' },
     { pair: 'ETH/USDT', confidence: 91, headline: 'Ethereum Network Upgrade Signals Confidence', summary: 'Deflationary pressure increases as network activity surges, painting a very positive outlook for the medium term.', date: 'I dag, 07:15', author: 'Quant AI', impact: 'Bullish' },
-    { pair: 'SOL/USDT', confidence: 89, headline: 'Solana Shows High Resilience in Tech Sector', summary: 'Despite broader market sideways movement, SOL continues to show strength on shorter timeframes with high momentum.', date: 'I dag, 06:45', author: 'Quant AI', impact: 'Bullish' },
+    { pair: 'SOL/USDC', confidence: 89, headline: 'Solana Shows High Resilience in Tech Sector', summary: 'Despite broader market sideways movement, SOL continues to show strength on shorter timeframes with high momentum.', date: 'I dag, 06:45', author: 'Quant AI', impact: 'Bullish' },
     { pair: 'AVAX/USDT', confidence: 88, headline: 'Avalanche Ecosystem Expansion Triggers Alert', summary: 'New partnerships and increased TVL indicate a potential breakout forming on the 4H chart.', date: 'I går, 23:20', author: 'Quant AI', impact: 'Neutral til Bullish' }
   ]);
 
@@ -833,6 +901,29 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     }
   };
 
+  const [isResettingPerformance, setIsResettingPerformance] = useState(false);
+  
+  const handleResetPerformance = async () => {
+    if (!window.confirm("Er du sikker på, at du vil nulstille AI Performance? Dette vil slette din ordrehistorik og nulstille statistikken.")) return;
+    
+    setIsResettingPerformance(true);
+    try {
+      const res = await fetch('/api/bot/reset-performance', { method: 'POST' });
+      if (!res.ok) throw new Error("Fejl ved nulstilling");
+      addLog("AI Performance er blevet nulstillet.", "info");
+      
+      // Update state locally to reflect immediately
+      setOrderHistory([]);
+      setTotalPnl(0);
+      setDailyFeeDebt(0);
+      
+    } catch (err: any) {
+      addLog(`Nulstilling fejlede: ${err.message || err}`, "error");
+    } finally {
+      setIsResettingPerformance(false);
+    }
+  };
+
   const handleSaveToCalendar = async () => {
     if (needsGoogleAuth) {
       const connectConfirm = window.confirm("Du skal forbinde din Google-konto først for at synkronisere med kalenderen. Vil du forbinde nu?");
@@ -870,10 +961,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const fetchWalletRef = useRef<() => void>(() => {});
 
   useEffect(() => {
-     if (panelTab === 'wallet' && !walletData) {
-        fetchWallet();
-     }
-  }, [panelTab]);
+     fetchWallet();
+  }, [isLiveTrading]);
 
   const fetchWallet = async () => {
      setWalletLoading(true);
@@ -894,7 +983,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
        const data = await res.json();
        setWalletData(data);
      } catch (err: any) {
-       setWalletError(err.message || 'Error loading wallet');
+       if (!String(err).includes('Failed to fetch')) setWalletError(err.message || 'Error loading wallet');
      } finally {
        setWalletLoading(false);
      }
@@ -998,12 +1087,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     let currentBalance = 10000;
     
     if (walletData && walletData.spot) {
-       const activeAsset = symbol.replace(/USDT|USDC/g, '');
+       const activeAsset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
        const getAssetUsdPrice = (asset: string) => {
          if (asset === 'USDT' || asset === 'USDC') return 1.0;
          if (asset === activeAsset) return parseFloat(currentPrice) || 1.0;
          const defaults: Record<string, number> = {
-           BTC: 68350.20, ETH: 3490.15, SOL: 156.70, BNB: 585.30, XRP: 0.52, ADA: 0.45, DOGE: 0.165, AVAX: 45.30
+           BTC: 68350.20, ETH: 3490.15, SOL: 156.70, BNB: 585.30, XRP: 0.52, ADA: 0.45, DOGE: 0.165, AVAX: 45.30, SPY: 510.50, QQQ: 440.20, VOO: 460.10, ARKK: 50.30, TLT: 90.50, BND: 72.10, AGG: 97.40, LQD: 105.20
          };
          return defaults[asset] || 1.0;
        };
@@ -1677,8 +1766,13 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   }, [orderHistory, lastFeePaymentDate, isBotActive, dailyFeeDebt, showFeePaymentModal]);
 
   const handlePayDailyFee = async () => {
+    if (walletLoading) {
+         toast.info("Indlæser wallet data, vent venligst...");
+         return;
+    }
     if (!walletData || !walletData.spot) {
-         toast.error("Kan ikke indlæse wallet data. Vent venligst.");
+         toast.error("Kunne ikke indlæse wallet data. Prøver at hente igen...");
+         fetchWallet();
          return;
     }
     const usdt = walletData.spot.find((s:any) => s.asset === 'USDT');
@@ -1752,7 +1846,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
          }
        } catch(e) {
          addLog(`Bot startup failed: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
-         toast.error(`Kunne ikke starte agent: ${e instanceof Error ? e.message : 'Unknown error'}`);
+         if (!String(e).includes('Failed to fetch')) toast.error(`Kunne ikke starte agent: ${e instanceof Error ? e.message : 'Unknown error'}`);
        }
     } else {
        setIsBotActive(false);
@@ -1940,7 +2034,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 
                 mockTrades.push({
                   id: `BT-${Date.now().toString().slice(-4)}-${i}`,
-                  symbol: symbol.replace(/USDT|USDC/g, ''),
+                  symbol: symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, ''),
                   type: currentPosition.type,
                   pnl: netPnl,
                   time: time,
@@ -1975,7 +2069,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
             
             mockTrades.push({
               id: `BT-${Date.now().toString().slice(-4)}-end`,
-              symbol: symbol.replace(/USDT|USDC/g, ''),
+              symbol: symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, ''),
               type: currentPosition.type,
               pnl: netPnl,
               time: new Date(finalKline[6]),
@@ -2165,12 +2259,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
            
            <div className="flex flex-col items-center gap-4 shrink-0 bg-black/30 p-4 rounded-xl border border-gray-800 w-full md:w-auto">
               <div className="bg-white p-2 rounded-lg hidden md:block">
-                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`} alt="Deposit QR" className="w-32 h-32" />
+                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://app.binance.com/qr/dplk?action=download&id=854921043&amount=${unpaidFee}&currency=USDT`)}`} alt="Binance Pay QR" className="w-32 h-32" />
               </div>
               
               <div className="w-full flex flex-col gap-2">
                 <button 
-                  onClick={() => setShowP2PModal(true)}
+                  onClick={() => { setP2PAmount(unpaidFee); setP2pReference('FEE-' + new Date().getTime().toString().slice(-6)); setShowP2PModal(true); }}
                   className="w-full px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl shadow-lg transition-colors whitespace-nowrap flex items-center justify-center gap-2 mb-2"
                 >
                    Åbn P2P Betalingsvindue
@@ -2199,9 +2293,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
       
       <P2PPaymentModal 
         isOpen={showP2PModal} 
-        onClose={() => setShowP2PModal(false)}
-        amount={unpaidFee}
-        referenceId={`AI-TRADER-${new Date().getTime().toString().slice(-6)}`}
+        onClose={() => { setShowP2PModal(false); setP2PAmount(0); }}
+        amount={p2pAmount > 0 ? p2pAmount : unpaidFee}
+        referenceId={p2pReference || `AI-TRADER-${new Date().getTime().toString().slice(-6)}`}
       />
       {/* Dashboard Layout Toolbar */}
 
@@ -2248,8 +2342,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         {/* Main Agent Control */}
         <motion.div 
           layout
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: widgetOrder.indexOf('agentControl') * 0.1, ease: 'easeOut' }}
           style={{ order: widgetOrder.indexOf('agentControl') }}
-          className={`lg:col-span-2 space-y-6 relative group transition-all duration-300 ${draggedIndex === widgetOrder.indexOf('agentControl') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5 rounded-3xl pb-4 shadow-sm' : ''}`}
+          className={`lg:col-span-2 space-y-6 relative group transition-all duration-300 hover:scale-[1.01] hover:z-10 ${draggedIndex === widgetOrder.indexOf('agentControl') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5 rounded-3xl pb-4 shadow-sm' : ''}`}
         >
           {/* Reordering Header */}
           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between px-3 py-1.5 bg-gray-950/95 border border-gray-850/80 rounded-t-xl text-[9px] uppercase font-bold tracking-widest absolute -top-5 left-4 right-4 z-50 shadow-xl backdrop-blur-sm">
@@ -2314,14 +2411,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
              </div>
           </div>
 
-          <PortfolioSummary walletData={walletData} walletLoading={walletLoading} />
+          <PortfolioSummary />
 
-          {/* Portfolio Performance Chart */}
-          <div className="mb-8">
-            <PortfolioPerformanceChart data={balanceGrowthData} />
-          </div>
-
-          {/* Ticker Stats */}
+                    {/* Ticker Stats */}
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-gray-950/40 border border-gray-800/80 p-4 rounded-2xl mb-8 relative z-10">
              <div className="flex items-center gap-4">
                 <div>
@@ -2577,7 +2669,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                         }
                     }}
                   >
-                    <span>{AVAILABLE_PAIRS.find(p => p.value === symbol)?.label || `${symbol.replace(/USDT|USDC/g, "")}/${symbol.endsWith('USDC') ? 'USDC' : 'USDT'} (Tilpasset)`}</span>
+                    <span>{AVAILABLE_PAIRS.find(p => p.value === symbol)?.label || `${symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, "")}/${symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))))} (Tilpasset)`}</span>
                     <ChevronDown className="size-4 text-gray-500" />
                   </div>
                   
@@ -2619,7 +2711,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                 <div
                                     onClick={() => {
                                         let customVal = tickerSearch.toUpperCase().trim();
-                                        if (!customVal.endsWith('USDT') && !customVal.endsWith('USDC')) {
+                                        if (!customVal.endsWith('USDT') && !customVal.endsWith('USDC') && !customVal.endsWith('BTC') && !customVal.endsWith('ETH') && !customVal.endsWith('BNB') && !customVal.endsWith('EUR')) {
                                            customVal += 'USDT';
                                         }
                                         setSymbol(customVal);
@@ -2861,18 +2953,13 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
           moveWidget={moveWidget}
           walletData={walletData}
           walletLoading={walletLoading}
+          onOpenDeposit={() => {
+             setP2PAmount(0); // Means the user specifies amount on Binance App, or we could ask for amount here. But let's pass 0, the modal can handle it or Binance App handles it.
+             setP2pReference('DEPOSIT-FUNDS-' + new Date().getTime().toString().slice(-4));
+             setShowP2PModal(true);
+          }}
         />
-        <UpgradesStoreWidget userEmail={googleUser?.email}
-          widgetOrder={widgetOrder}
-          draggedIndex={draggedIndex}
-          handleDragStart={handleDragStart}
-          handleDragOver={handleDragOver}
-          handleDrop={handleDrop}
-          handleDragEnd={handleDragEnd}
-          moveWidget={moveWidget}
-          onOpenProModal={() => setShowProModal(true)}
-
-        />
+        
 
         {(() => {
           const allTabs = [
@@ -2882,6 +2969,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
             { id: 'history', label: 'Historik', icon: History, colorClass: 'text-amber-500', cat: 'overblik' },
             { id: 'wallet', label: 'Min Pung', icon: Wallet, colorClass: 'text-purple-500', cat: 'overblik' },
             { id: 'alerts', label: 'Alarmer', icon: Bell, colorClass: 'text-rose-500', cat: 'overblik' },
+            { id: 'stocks', label: 'Aktier & Nyheder', icon: Newspaper, colorClass: 'text-emerald-500', cat: 'analyse' },
             { id: 'analyses', label: 'Analyser', icon: Newspaper, colorClass: 'text-blue-500', cat: 'analyse' },
             { id: 'compare', label: 'Sammenlign', icon: GitCompare, colorClass: 'text-orange-500', cat: 'strategi' },
             { id: 'backtest', label: 'Test Forløb', icon: LineChart, colorClass: 'text-pink-500', cat: 'strategi' },
@@ -2889,6 +2977,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
             { id: 'scanner', label: 'Scanner', icon: Activity, colorClass: 'text-purple-500', cat: 'analyse' },
             { id: 'macro', label: 'Global Macro', icon: Globe, colorClass: 'text-cyan-500', cat: 'analyse' },
             { id: 'autopilot', label: 'AI Copilot', icon: Rocket, colorClass: 'text-amber-500', cat: 'strategi' },
+            { id: 'rebalance', label: 'AI Rebalancer', icon: PieChartIcon, colorClass: 'text-indigo-400', cat: 'strategi' },
             { id: 'design', label: 'Design Center', icon: Palette, colorClass: 'text-indigo-400 animate-pulse', cat: 'strategi' },
           ] as const;
 
@@ -2921,13 +3010,16 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               : activeTheme === 'sage' 
                 ? 'p-6 bg-[#111813]/95 border-emerald-950/30 text-[#edf3ed] shadow-2xl shadow-emerald-950/5' 
                 : 'p-6 bg-black/40 backdrop-blur-2xl border-white/10 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)]'
-          } overflow-hidden flex flex-col h-[650px] relative group transition-all duration-300 ${
+          } overflow-hidden flex flex-col h-[650px] relative group transition-all duration-300 hover:scale-[1.01] hover:z-10 ${
             draggedIndex === widgetOrder.indexOf('realtimeTabs') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''
           } rounded-3xl border`;
 
           return (
             <motion.div 
               layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: widgetOrder.indexOf('realtimeTabs') * 0.1, ease: 'easeOut' }}
               style={{ order: widgetOrder.indexOf('realtimeTabs') }}
               className={containerThemeClasses}
             >
@@ -3129,6 +3221,13 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                       </div>
                       
                       <div className="flex items-center gap-3 shrink-0 bg-black/40 px-4 py-2.5 rounded-xl border border-white/5">
+                        <button
+                          onClick={() => setLayoutMode(layoutMode === 'detailed' ? 'compact' : 'detailed')}
+                          className={`text-[10px] font-bold uppercase tracking-widest ${layoutMode === 'detailed' ? 'text-amber-400' : 'text-gray-400'} hover:text-white transition-colors`}
+                        >
+                          {layoutMode === 'detailed' ? 'Detailed' : 'Compact'}
+                        </button>
+                        <div className="w-[1px] h-4 bg-white/10" />
                         <div className={`w-2.5 h-2.5 rounded-full ${isBotActive ? 'bg-emerald-500 animate-ping' : 'bg-gray-600'}`}></div>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                           AI Autopilot: <strong className={isBotActive ? 'text-emerald-400' : 'text-gray-500'}>{isBotActive ? 'AKTIV' : 'INAKTIV'}</strong>
@@ -3138,13 +3237,23 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                   </div>
 
                   {/* Bento Grid layout for navigation */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    
-                    {/* 1. LIVE DATA */}
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Dashboard Navigation</h3>
                     <button 
-                      onClick={() => setPanelTab('live')}
-                      className="p-4 bg-gray-950/40 hover:bg-gray-900/60 border border-white/5 hover:border-cyan-500/30 rounded-2xl text-left transition-all duration-300 group hover:shadow-[0_8px_20px_rgba(6,182,212,0.05)] relative flex flex-col justify-between min-h-[145px] hover:-translate-y-0.5 cursor-pointer"
+                      onClick={() => setIsBentoGridMinimized(!isBentoGridMinimized)}
+                      className="text-xs text-indigo-400 hover:text-indigo-300"
                     >
+                      {isBentoGridMinimized ? 'Expand' : 'Minimize'}
+                    </button>
+                  </div>
+                  {!isBentoGridMinimized && (
+                    <div className={`grid grid-cols-1 ${layoutMode === 'detailed' ? 'sm:grid-cols-2 md:grid-cols-3' : 'sm:grid-cols-2 md:grid-cols-4'} gap-3`}>
+                      
+                      {/* 1. LIVE DATA */}
+                      <button 
+                        onClick={() => setPanelTab('live')}
+                        className={`p-4 bg-gray-950/40 hover:bg-gray-900/60 border border-white/5 hover:border-cyan-500/30 rounded-2xl text-left transition-all duration-300 group hover:shadow-[0_8px_20px_rgba(6,182,212,0.05)] relative flex flex-col justify-between ${layoutMode === 'detailed' ? 'min-h-[145px]' : 'min-h-[110px]'} hover:-translate-y-0.5 cursor-pointer`}
+                      >
                       <div>
                         <div className="flex justify-between items-start mb-2">
                           <div className="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20 text-cyan-400 group-hover:scale-105 transition-transform">
@@ -3246,24 +3355,24 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                           ${(() => {
                             if (!walletData || !walletData.spot) return "10000.00";
                             const spotTotal = walletData.spot.reduce((acc, b) => {
-                              const activeAsset = symbol.replace(/USDT|USDC/g, '');
+                              const activeAsset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
                               const getAssetUsdPriceLocal = (asset) => {
                                 if (asset === 'USDT' || asset === 'USDC') return 1.0;
                                 if (asset === activeAsset) return parseFloat(currentPrice) || 1.0;
                                 const defaults = {
-                                  BTC: 68350.20, ETH: 3490.15, SOL: 156.70, BNB: 585.30, XRP: 0.52, ADA: 0.45, DOGE: 0.165, AVAX: 45.30
+                                  BTC: 68350.20, ETH: 3490.15, SOL: 156.70, BNB: 585.30, XRP: 0.52, ADA: 0.45, DOGE: 0.165, AVAX: 45.30, SPY: 510.50, QQQ: 440.20, VOO: 460.10, ARKK: 50.30, TLT: 90.50, BND: 72.10, AGG: 97.40, LQD: 105.20
                                 };
                                 return defaults[asset] || 1.0;
                               };
                               return acc + (parseFloat(b.free) + parseFloat(b.locked || '0')) * getAssetUsdPriceLocal(b.asset);
                             }, 0);
                             const earnTotal = (walletData.earn || []).reduce((acc, e) => {
-                              const activeAsset = symbol.replace(/USDT|USDC/g, '');
+                              const activeAsset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
                               const getAssetUsdPriceLocal = (asset) => {
                                 if (asset === 'USDT' || asset === 'USDC') return 1.0;
                                 if (asset === activeAsset) return parseFloat(currentPrice) || 1.0;
                                 const defaults = {
-                                  BTC: 68350.20, ETH: 3490.15, SOL: 156.70, BNB: 585.30, XRP: 0.52, ADA: 0.45, DOGE: 0.165, AVAX: 45.30
+                                  BTC: 68350.20, ETH: 3490.15, SOL: 156.70, BNB: 585.30, XRP: 0.52, ADA: 0.45, DOGE: 0.165, AVAX: 45.30, SPY: 510.50, QQQ: 440.20, VOO: 460.10, ARKK: 50.30, TLT: 90.50, BND: 72.10, AGG: 97.40, LQD: 105.20
                                 };
                                 return defaults[asset] || 1.0;
                               };
@@ -3476,6 +3585,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                     </button>
 
                   </div>
+                  )}
                 </motion.div>
               )}
 
@@ -3534,7 +3644,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                       {trade.isBuyerMaker ? 'SELL' : 'BUY'}
                                    </span>
                                    <span className="font-mono font-bold text-white text-sm">
-                                      {symbol.replace(/USDT|USDC/g, '')}
+                                      {symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '')}
                                    </span>
                                 </div>
                                 <div className="text-right">
@@ -3581,7 +3691,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                      
                      
                      <div className="overflow-x-auto w-full pb-4">
-                       <div className="min-w-[700px]">
+                       <div className="w-full">
                          <table className="w-full text-left font-mono text-[11px]">
                            <thead className="sticky top-24 bg-gray-900/95 backdrop-blur-sm z-10 shadow-[0_10px_10px_-10px_rgba(0,0,0,0.5)]">
                              <tr className="text-gray-500 border-b border-gray-800">
@@ -3661,19 +3771,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                      <div className="space-y-6 h-full text-left" id="wallet-content-container">
                         {/* Premium Portfolio Card */}
                         {(() => {
-                           const activeAsset = symbol.replace(/USDT|USDC/g, '');
+                           const activeAsset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
                            const getAssetUsdPrice = (asset: string) => {
                              if (asset === 'USDT' || asset === 'USDC') return 1.0;
                              if (asset === activeAsset) return parseFloat(currentPrice) || 1.0;
                              const defaults: Record<string, number> = {
-                               BTC: 68350.20,
-                               ETH: 3490.15,
-                               SOL: 156.70,
-                               BNB: 585.30,
-                               XRP: 0.52,
-                               ADA: 0.45,
-                               DOGE: 0.165,
-                               AVAX: 45.30
+                               BTC: 68350.20, ETH: 3490.15, SOL: 156.70, BNB: 585.30, XRP: 0.52, ADA: 0.45, DOGE: 0.165, AVAX: 45.30, SPY: 510.50, QQQ: 440.20, VOO: 460.10, ARKK: 50.30, TLT: 90.50, BND: 72.10, AGG: 97.40, LQD: 105.20
                              };
                              return defaults[asset] || 1.0;
                            };
@@ -4195,102 +4298,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                   transition={{ duration: 0.2, ease: "easeInOut" }}
                   className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-800 absolute inset-0 space-y-6"
                 >
-                  <div className="border-b-4 border-gray-100 dark:border-gray-800 pb-3 mb-6">
-                     <h2 className="text-3xl font-serif font-black tracking-tighter uppercase text-white mb-1">
-                        Strategy Backtesting
-                     </h2>
-                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">
-                        Simulate Historical Performance
-                     </div>
-                  </div>
-
-                  <div className="bg-gray-950/80 border border-gray-800 rounded-xl p-5 shadow-xl space-y-6">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Strategy to Test</label>
-                           <select 
-                              value={backtestStrategy}
-                              onChange={(e) => setBacktestStrategy(e.target.value)}
-                              className="w-full bg-gray-900 border border-gray-800 text-gray-200 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-pink-500 transition-colors"
-                           >
-                              <option>High-Frequency Scalper (HFT)</option>
-                              <option>Momentum Swing Trader</option>
-                              <option>Value Mean-Reversion</option>
-                              <option>Grid Trading Arbitrage</option>
-                           </select>
-                        </div>
-                        <div>
-                           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Timeframe</label>
-                           <select 
-                              value={backtestTimeRange}
-                              onChange={(e) => setBacktestTimeRange(e.target.value)}
-                              className="w-full bg-gray-900 border border-gray-800 text-gray-200 text-sm rounded-lg px-3 py-2.5 outline-none focus:border-pink-500 transition-colors"
-                           >
-                              <option value="1W">1 Week (High Res)</option>
-                              <option value="1M">1 Month (Medium Res)</option>
-                              <option value="6M">6 Months (Macro)</option>
-                           </select>
-                        </div>
-                     </div>
-
-                     <button 
-                        onClick={runBacktest}
-                        disabled={isBacktesting}
-                        className={`w-full py-3 rounded-lg font-bold text-sm tracking-wide uppercase transition-all duration-300 ${
-                           isBacktesting 
-                           ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
-                           : 'bg-pink-600 hover:bg-pink-500 text-white shadow-[0_0_20px_rgba(219,39,119,0.3)]'
-                        }`}
-                     >
-                        {isBacktesting ? 'Simulating...' : 'Run Backtest'}
-                     </button>
-                  </div>
-
-                  {backtestMetrics && (
-                     <div className="bg-gray-950/80 border border-pink-900/40 rounded-xl p-5 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
-                        <div className="flex justify-between items-end mb-2">
-                           <h3 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-1">Backtest Resultater</h3>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div className="bg-gray-900 rounded-lg p-4">
-                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Samlet Afkast</p>
-                              <p className={`text-xl font-mono font-bold tabular-nums ${backtestMetrics.totalReturnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                 {backtestMetrics.totalReturnPct >= 0 ? '+' : ''}{backtestMetrics.totalReturnPct.toFixed(2)}%
-                              </p>
-                           </div>
-                           <div className="bg-gray-900 rounded-lg p-4">
-                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Maks Drawdown</p>
-                              <p className="text-xl font-mono text-rose-400 font-bold tabular-nums">
-                                 {backtestMetrics.maxDrawdownPct.toFixed(2)}%
-                              </p>
-                           </div>
-                           <div className="bg-gray-900 rounded-lg p-4">
-                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Volatilitet</p>
-                              <p className="text-xl font-mono text-gray-200 font-bold tabular-nums">
-                                 {backtestMetrics.volatilityPct.toFixed(2)}%
-                              </p>
-                           </div>
-                           <div className="bg-gray-900 rounded-lg p-4">
-                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Sharpe Ratio</p>
-                              <p className={`text-xl font-mono font-bold tabular-nums ${backtestMetrics.sharpeRatio >= 1 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                 {backtestMetrics.sharpeRatio.toFixed(2)}
-                              </p>
-                           </div>
-                           <div className="bg-gray-900 rounded-lg p-4">
-                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Antal Handler</p>
-                              <p className="text-xl font-mono text-gray-200 font-bold tabular-nums">
-                                 {backtestMetrics.tradesCount}
-                              </p>
-                           </div>
-                           <div className="bg-gray-900 rounded-lg p-4">
-                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Win Rate</p>
-                              <p className={`text-xl font-mono font-bold tabular-nums ${backtestMetrics.winRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                 {backtestMetrics.winRate.toFixed(1)}%
-                              </p>
-                           </div>
-                        </div>
-                     </div>
-                  )}
+                  <StrategyBacktester currentStrategy={strategy} defaultTicker={symbol} />
                 </motion.div>
               )}
               {panelTab === 'journal' && (
@@ -4385,6 +4393,53 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                   </div>
                 </motion.div>
               )}
+              {panelTab === 'stocks' && (
+                <motion.div
+                  key="stocks"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-800 absolute inset-0 space-y-6"
+                >
+                  <div className="border-b-4 border-gray-100 dark:border-gray-800 pb-3 mb-6">
+                     <h2 className="text-3xl font-serif font-black tracking-tighter uppercase text-white mb-1">
+                        Aktier & Nyheder
+                     </h2>
+                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">
+                        Realtidsaktiedata-feeds & Markedsnyheder
+                     </div>
+                  </div>
+                  
+                  <div className="flex gap-2 items-center">
+                     <label className="text-xs font-bold text-gray-400 uppercase">Vælg Aktie:</label>
+                     <select 
+                        value={stockTicker}
+                        onChange={(e) => setStockTicker(e.target.value)}
+                        className="bg-gray-900 border border-gray-800 rounded px-2 py-1 text-sm font-bold text-white outline-none focus:border-emerald-500"
+                     >
+                        <option value="AAPL">AAPL (Apple)</option>
+                        <option value="TSLA">TSLA (Tesla)</option>
+                        <option value="MSFT">MSFT (Microsoft)</option>
+                        <option value="NVDA">NVDA (NVIDIA)</option>
+                        <option value="AMZN">AMZN (Amazon)</option>
+                     </select>
+                  </div>
+
+                  <div className="h-[400px] w-full mt-4 bg-black/40 backdrop-blur-2xl p-4 rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative overflow-hidden flex flex-col">
+                     <StockChart 
+                        data={mockStockData} 
+                        ticker={stockTicker} 
+                        timeframe="1H" 
+                        onTimeframeChange={() => {}} 
+                     />
+                  </div>
+
+                  <div className="mt-6">
+                     <NewsFeed ticker={stockTicker} />
+                  </div>
+                </motion.div>
+              )}
               {panelTab === 'scanner' && (
                 <motion.div
                   key="scanner"
@@ -4436,6 +4491,18 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                    <CorrelationMatrix />
                 </motion.div>
               )}
+              {panelTab === 'rebalance' && (
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-800 absolute inset-0 space-y-6 pb-20 font-sans"
+                >
+                   <PortfolioRebalancer userProfile="Balanceret" walletData={walletData} />
+                </motion.div>
+              )}
+              
               {panelTab === 'design' && (
                 <motion.div
                   key="design"
@@ -4450,6 +4517,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                      setActiveTheme={handleThemeChange}
                      navStyle={navStyle}
                      setNavStyle={handleNavStyleChange}
+                     widgetOrder={widgetOrder}
+                     setWidgetOrder={(order) => {
+                       setWidgetOrder(order);
+                       localStorage.setItem('binance_widget_order', JSON.stringify(order));
+                     }}
                    />
                 </motion.div>
               )}
@@ -4464,8 +4536,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
       {/* Analytics Panel */}
       <motion.div 
         layout
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: widgetOrder.indexOf('aiPerformance') * 0.1, ease: 'easeOut' }}
         style={{ order: widgetOrder.indexOf('aiPerformance') }}
-        className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative overflow-hidden group transition-all duration-300 ${draggedIndex === widgetOrder.indexOf('aiPerformance') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''}`}
+        className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative overflow-hidden group transition-all duration-300 hover:scale-[1.01] hover:z-10 ${draggedIndex === widgetOrder.indexOf('aiPerformance') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''}`}
       >
          {/* Reordering Header */}
          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between px-3 py-1.5 bg-gray-950/95 border border-gray-850 rounded-t-xl text-[9px] uppercase font-bold tracking-widest absolute -top-5 left-4 right-4 z-50 shadow-xl backdrop-blur-sm animate-in fade-in slide-in-from-top-1">
@@ -4494,9 +4569,18 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               </button>
             </div>
          </div>
-           <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2 relative z-10">
-              <TrendingUp className="text-emerald-500 size-4" /> AI Performance
-           </h4>
+           <div className="flex justify-between items-center mb-6 relative z-10">
+               <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <TrendingUp className="text-emerald-500 size-4" /> AI Performance
+               </h4>
+               <button 
+                  onClick={handleResetPerformance}
+                  disabled={isResettingPerformance}
+                  className="text-[10px] text-gray-500 hover:text-rose-400 transition-colors uppercase tracking-widest"
+               >
+                  {isResettingPerformance ? "Nulstiller..." : "Nulstil"}
+               </button>
+           </div>
            <div className="space-y-6 relative z-10">
               <div>
                  <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Gevinst Rate (30d)</p>
@@ -4585,8 +4669,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                  <p className="text-xl font-mono text-cyan-400">{activePositions}</p>
                   
                   {activePositions > 0 && activePositionsList.map((pos: any, idx: number) => {
-                    const asset = pos.assetName || symbol.replace(/USDT|USDC/g, '');
-                    const quote = pos.quoteAsset || (symbol.endsWith('USDC') ? 'USDC' : 'USDT');
+                    const asset = pos.assetName || symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
+                    const quote = pos.quoteAsset || (symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT'))))));
                     const entryPrice = parseFloat(pos.price || '0');
                     const currentPrice = parseFloat(pos.currentPrice || lastPriceRef.current || '0');
                     const simProfitPct = pos.simProfitPct || 0;
@@ -4688,79 +4772,13 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
            </div>
         </motion.div>
 
-        {/* PORTFOLIO GROWTH WIDGET */}
         <motion.div 
           layout
-          draggable
-          onDragStart={(e) => handleDragStart(e, widgetOrder.indexOf('portfolioGrowth'))}
-          onDragOver={(e) => handleDragOver(e, widgetOrder.indexOf('portfolioGrowth'))}
-          onDrop={(e) => handleDrop(e, widgetOrder.indexOf('portfolioGrowth'))}
-          onDragEnd={handleDragEnd}
-          style={{ order: widgetOrder.indexOf('portfolioGrowth') }}
-          className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative overflow-hidden group transition-all duration-300 ${draggedIndex === widgetOrder.indexOf('portfolioGrowth') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''}`}
-        >
-          {/* Reordering Header */}
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between px-3 py-1.5 bg-gray-950/95 border border-gray-850 rounded-t-xl text-[9px] uppercase font-bold tracking-widest absolute -top-5 left-4 right-4 z-50 shadow-xl backdrop-blur-sm animate-in fade-in slide-in-from-top-1">
-             <span className="flex items-center gap-1.5 text-amber-500 cursor-grab active:cursor-grabbing">
-               <GripVertical className="size-3.5" />
-               Portfolio Vækst (30 Dage)
-             </span>
-             <div className="flex items-center gap-1 text-gray-400 font-mono">
-               <button 
-                 type="button" 
-                 onClick={(e) => { e.stopPropagation(); moveWidget(widgetOrder.indexOf('portfolioGrowth'), -1); }} 
-                 disabled={widgetOrder.indexOf('portfolioGrowth') === 0} 
-                 className="p-1 hover:bg-gray-850 hover:text-white rounded disabled:opacity-30 transition-colors"
-                 title="Flyt op / venstre"
-               >
-                 <ChevronLeft className="size-3.5" />
-               </button>
-               <button 
-                 type="button" 
-                 onClick={(e) => { e.stopPropagation(); moveWidget(widgetOrder.indexOf('portfolioGrowth'), 1); }} 
-                 disabled={widgetOrder.indexOf('portfolioGrowth') === widgetOrder.length - 1} 
-                 className="p-1 hover:bg-gray-850 hover:text-white rounded disabled:opacity-30 transition-colors"
-                 title="Flyt ned / højre"
-               >
-                 <ChevronRight className="size-3.5" />
-               </button>
-             </div>
-          </div>
-
-          <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2 relative z-10">
-             <LineChart className="text-blue-500 size-4" /> Portfolio Vækst
-          </h4>
-          
-          <div className="space-y-6 relative z-10">
-            <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Aktuel Balance</p>
-              <p className="text-4xl font-mono text-blue-400 tracking-tighter">
-                ${portfolioGrowthData[portfolioGrowthData.length - 1]?.balance.toFixed(2)}
-              </p>
-            </div>
-            <div className="h-48 w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsLineChart data={portfolioGrowthData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                  <XAxis dataKey="date" stroke="#4b5563" fontSize={10} tickLine={false} axisLine={false} minTickGap={20} />
-                  <YAxis stroke="#4b5563" fontSize={10} tickLine={false} axisLine={false} domain={['auto', 'auto']} tickFormatter={(v) => `$${v}`} width={60} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#030712', borderColor: '#1f2937', borderRadius: '0.5rem', fontSize: '10px', fontFamily: 'monospace' }}
-                    itemStyle={{ color: '#3b82f6' }}
-                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Balance']}
-                    labelStyle={{ color: '#9ca3af' }}
-                  />
-                  <Line type="monotone" dataKey="balance" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#030712', strokeWidth: 2 }} isAnimationActive={true} animationDuration={1500} animationEasing="ease-out" />
-                </RechartsLineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          layout
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: widgetOrder.indexOf('risikostyring') * 0.1, ease: 'easeOut' }}
           style={{ order: widgetOrder.indexOf('risikostyring') }}
-          className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative overflow-hidden group transition-all duration-300 ${draggedIndex === widgetOrder.indexOf('risikostyring') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''}`}
+          className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative overflow-hidden group transition-all duration-300 hover:scale-[1.01] hover:z-10 ${draggedIndex === widgetOrder.indexOf('risikostyring') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''}`}
         >
           {/* Reordering Header */}
           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between px-3 py-1.5 bg-gray-950/95 border border-gray-850 rounded-t-xl text-[9px] uppercase font-bold tracking-widest absolute -top-5 left-4 right-4 z-50 shadow-xl backdrop-blur-sm animate-in fade-in slide-in-from-top-1">
@@ -4824,8 +4842,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         
         <motion.div 
           layout
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: widgetOrder.indexOf('maeglerforbindelse') * 0.1, ease: 'easeOut' }}
           style={{ order: widgetOrder.indexOf('maeglerforbindelse') }}
-          className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative group transition-all duration-300 ${draggedIndex === widgetOrder.indexOf('maeglerforbindelse') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''}`}
+          className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] relative group transition-all duration-300 hover:scale-[1.01] hover:z-10 ${draggedIndex === widgetOrder.indexOf('maeglerforbindelse') ? 'opacity-40 ring-2 ring-amber-500/40 bg-amber-500/5' : ''}`}
         >
           {/* Reordering Header */}
           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between px-3 py-1.5 bg-gray-950/95 border border-gray-850 rounded-t-xl text-[9px] uppercase font-bold tracking-widest absolute -top-5 left-4 right-4 z-50 shadow-xl backdrop-blur-sm animate-in fade-in slide-in-from-top-1">
@@ -5680,6 +5701,7 @@ ${activeSummaryText}
           </div>
         );
       })()}
+      <GeminiChat />
     </>
   );
 }

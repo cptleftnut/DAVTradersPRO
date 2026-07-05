@@ -1,7 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Wallet, List as ListIcon } from 'lucide-react';
 import { DonutChart } from './DonutChart';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, YAxis } from 'recharts';
+import { PortfolioAllocationChart } from './PortfolioAllocationChart';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, YAxis, XAxis } from 'recharts';
+import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 
 const generateSparklineData = (seedStr: string) => {
@@ -21,7 +24,53 @@ const generateSparklineData = (seedStr: string) => {
     return { data, isPositive: data[data.length - 1].val >= data[0].val };
 }
 
-export const PortfolioSummary = React.memo( ({ walletData, walletLoading }: { walletData: any, walletLoading: boolean }) => {
+export const PortfolioSummary = React.memo( () => {
+  const [walletData, setWalletData] = useState<any>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [latestPnl, setLatestPnl] = useState<number | null>(null);
+  const [pnlTrend, setPnlTrend] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'dailySummaries'), orderBy('createdAt', 'desc'), limit(1));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+           setLatestPnl(snapshot.docs[0].data().totalPnl || 0);
+        }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const fetchWallet = async () => {
+      setWalletLoading(true);
+      try {
+        const response = await fetch('/api/wallet');
+        if (response.ok) {
+           const data = await response.json();
+           setWalletData(data);
+        }
+      } catch (e: any) {
+        if (String(e).includes('Failed to fetch')) return;
+        console.error("Failed to fetch wallet", e);
+      } finally {
+        setWalletLoading(false);
+      }
+    };
+    fetchWallet();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'dailySummaries'), orderBy('createdAt', 'desc'), limit(30));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({
+            date: doc.data().createdAt?.toDate?.().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || 'N/A',
+            pnl: doc.data().totalPnl || 0
+        })).reverse();
+        setPnlTrend(data);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const totalBalance = useMemo(() => {
      if (!walletData || !walletData.spot) return 0;
      let total = 0;
@@ -39,9 +88,15 @@ export const PortfolioSummary = React.memo( ({ walletData, walletLoading }: { wa
             total += amount * 585.30;
         } else if (item.asset === 'SOL') {
             total += amount * 156.70;
-        } else {
-            total += amount * 1; // Default
-        }
+        } else if (item.asset === 'SPY') { total += amount * 510.50;
+        } else if (item.asset === 'QQQ') { total += amount * 440.20;
+        } else if (item.asset === 'VOO') { total += amount * 460.10;
+        } else if (item.asset === 'ARKK') { total += amount * 50.30;
+        } else if (item.asset === 'TLT') { total += amount * 90.50;
+        } else if (item.asset === 'BND') { total += amount * 72.10;
+        } else if (item.asset === 'AGG') { total += amount * 97.40;
+        } else if (item.asset === 'LQD') { total += amount * 105.20;
+        } else { total += amount * 1; }
      });
      return total;
   }, [walletData]);
@@ -64,9 +119,15 @@ export const PortfolioSummary = React.memo( ({ walletData, walletLoading }: { wa
             value = amount * 585.30;
         } else if (item.asset === 'SOL') {
             value = amount * 156.70;
-        } else {
-            value = amount * 1;
-        }
+        } else if (item.asset === 'SPY') { value = amount * 510.50;
+        } else if (item.asset === 'QQQ') { value = amount * 440.20;
+        } else if (item.asset === 'VOO') { value = amount * 460.10;
+        } else if (item.asset === 'ARKK') { value = amount * 50.30;
+        } else if (item.asset === 'TLT') { value = amount * 90.50;
+        } else if (item.asset === 'BND') { value = amount * 72.10;
+        } else if (item.asset === 'AGG') { value = amount * 97.40;
+        } else if (item.asset === 'LQD') { value = amount * 105.20;
+        } else { value = amount * 1; }
         return { asset: item.asset, amount, value, free: freeAmount, locked: lockedAmount };
       }).filter((a: any) => a.value > 0).sort((a: any, b: any) => b.value - a.value).slice(0, 5);
       
@@ -83,6 +144,11 @@ export const PortfolioSummary = React.memo( ({ walletData, walletLoading }: { wa
              <div>
                 <h2 className="text-xl font-bold tracking-tight text-white">Portfolio Summary</h2>
                 <div className="text-sm text-gray-400 font-mono">Total Estimated Value</div>
+                {latestPnl !== null && (
+                    <div className={`text-xs ${latestPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        Daily PnL: {latestPnl >= 0 ? '+' : ''}{latestPnl.toFixed(2)}
+                    </div>
+                )}
              </div>
              {walletLoading && <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>}
           </div>
@@ -114,6 +180,7 @@ export const PortfolioSummary = React.memo( ({ walletData, walletLoading }: { wa
                  {walletLoading ? "Loading wallet data..." : "No asset data available"}
              </div>
          ) : (
+             <>
              <div className="overflow-x-auto">
                  <table className="w-full text-left text-sm text-gray-400">
                      <thead className="text-xs text-gray-500 uppercase bg-gray-900/50 border-b border-gray-800">
@@ -181,6 +248,20 @@ export const PortfolioSummary = React.memo( ({ walletData, walletLoading }: { wa
                      </tbody>
                  </table>
              </div>
+             <PortfolioAllocationChart walletData={walletData} />
+             <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow-lg mt-6">
+                <h3 className="text-sm font-medium text-gray-400 mb-4 uppercase tracking-wider">30-Day PnL Trend</h3>
+                <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={pnlTrend}>
+                            <XAxis dataKey="date" hide />
+                            <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#f3f4f6' }} />
+                            <Line type="monotone" dataKey="pnl" stroke="#10b981" strokeWidth={2} dot={false} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+             </div>
+             </>
          )}
             </div>
          </div>

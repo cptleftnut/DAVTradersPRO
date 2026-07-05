@@ -9,7 +9,7 @@
 
 @layer base {
   body {
-    @apply bg-[#08080A] text-gray-200 font-sans antialiased selection:bg-amber-500/30 selection:text-amber-200;
+    @apply bg-gray-950 text-gray-100 font-sans antialiased selection:bg-amber-500/30 selection:text-amber-200;
   }
   
   h1, h2, h3, h4, h5, h6 {

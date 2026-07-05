@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { GripVertical, ChevronLeft, ChevronRight, Wallet, PieChart as PieChartIcon, ArrowUpRight, ShieldCheck, Zap } from 'lucide-react';
+import { GripVertical, ChevronLeft, ChevronRight, Wallet, PieChart as PieChartIcon, ArrowUpRight, ShieldCheck, Zap, QrCode } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export const WalletSummaryWidget = React.memo(({ 
@@ -12,7 +12,8 @@ export const WalletSummaryWidget = React.memo(({
   handleDragEnd, 
   moveWidget,
   walletData,
-  walletLoading
+  walletLoading,
+  onOpenDeposit
 }: any) => {
 
   const totalBalance = useMemo(() => {
@@ -63,8 +64,11 @@ export const WalletSummaryWidget = React.memo(({
   return (
     <motion.div 
       layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: widgetOrder.indexOf('walletSummary') * 0.1, ease: 'easeOut' }}
       style={{ order: widgetOrder.indexOf('walletSummary') }}
-      className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] overflow-hidden flex flex-col relative group transition-all duration-300 ${draggedIndex === widgetOrder.indexOf('walletSummary') ? 'opacity-40 ring-2 ring-emerald-500/40 bg-emerald-500/5' : ''}`}
+      className={`p-6 bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] overflow-hidden flex flex-col relative group transition-all duration-300 hover:scale-[1.01] hover:z-10 ${draggedIndex === widgetOrder.indexOf('walletSummary') ? 'opacity-40 ring-2 ring-emerald-500/40 bg-emerald-500/5' : ''}`}
     >
       {/* Reordering Header */}
       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between px-3 py-1.5 bg-gray-950/95 border border-gray-850 rounded-t-xl text-[9px] uppercase font-bold tracking-widest absolute -top-5 left-4 right-4 z-50 shadow-xl backdrop-blur-sm animate-in fade-in slide-in-from-top-1">
@@ -109,6 +113,10 @@ export const WalletSummaryWidget = React.memo(({
              ${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
+        <button onClick={onOpenDeposit} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors">
+          <QrCode className="size-3.5" />
+          Deposit
+        </button>
       </div>
 
       {/* AI Access Fee Banner */}

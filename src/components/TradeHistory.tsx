@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState, useEffect, Fragment, useMemo } from "react";
+import React, { useState, useEffect, Fragment, useMemo } from 'react';
 import {
   History,
   ChevronLeft,
@@ -12,6 +11,8 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer, YAxis } from "recharts";
 import { motion, AnimatePresence } from "motion/react";
+import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 function MiniSparkline({ data, width, height, color }: { data: number[], width: number, height: number, color: string }) {
   if (!data || data.length === 0) return <div style={{width, height}} />;
@@ -59,7 +60,7 @@ const generateMockTrades = (count: number): Trade[] => {
   const tickers = [
     "BTCUSDT",
     "ETHUSDT",
-    "SOLUSDT",
+    "SOLUSDC",
     "XRPUSDT",
     "ADAUSDT",
     "DOGEUSDT",
@@ -107,37 +108,41 @@ const generateMockTrades = (count: number): Trade[] => {
 };
 
 export const TradeHistory = React.memo(function TradeHistory({ journalEntries = [] }: { journalEntries?: any[] }) {
-  const [trades, setTrades] = useState<Trade[]>(() => generateMockTrades(24));
-  const [loading, setLoading] = useState(false);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    fetch('/api/bot/state')
-      .then(res => res.json())
-      .then(state => {
-        if (state.orderHistory) {
-          const mappedTrades: Trade[] = state.orderHistory.map((o: any) => ({
-            id: o.id,
-            ticker: o.symbol,
-            side: o.type === 'BUY' ? 'BUY' : 'SELL',
-            price: 0,
-            amount: 0,
-            status: 'FILLED',
-            timestamp: o.time,
-            realizedPnL: o.pnl,
-            trendLine: []
-          }));
-          setTrades(mappedTrades);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to fetch trades:", err);
-        setLoading(false);
+    const q = query(collection(db, 'orderHistory'), orderBy('time', 'desc'), limit(50));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const mappedTrades: Trade[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ticker: data.symbol,
+          side: data.type === 'BUY' ? 'BUY' : 'SELL',
+          price: data.price || 0,
+          amount: data.quantity || 0,
+          status: 'FILLED',
+          timestamp: data.time?.toDate?.().toISOString() || data.time,
+          realizedPnL: data.pnl || 0,
+          trendLine: []
+        };
       });
+      setTrades(mappedTrades);
+      setLoading(false);
+    }, (error) => {
+      if (String(error).includes('Failed to fetch')) {
+        setLoading(false);
+        return;
+      }
+      console.error("Failed to fetch trades:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const [columns, setColumns] = useState({

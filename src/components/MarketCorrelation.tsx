@@ -64,7 +64,7 @@ export function MarketCorrelation() {
     // Ensure we have at least some default crypto pairs if empty or very small, as Binance only accepts proper symbols.
     // Also limit it to max 6-8 to avoid UI clutter
     if (!watchList || watchList.length < 2) {
-      const defaults = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT'];
+      const defaults = ['BTCUSDT', 'ETHUSDT', 'SOLUSDC', 'BNBUSDT'];
       watchList = Array.from(new Set([...watchList, ...defaults]));
     }
     watchList = watchList.slice(0, 8); // Max 8 assets for the grid
@@ -165,7 +165,7 @@ export function MarketCorrelation() {
         setTickers(availableTickers);
         setCorrelationData(matrix);
       } catch (err: any) {
-        if (isActive && !isBackground) setError(err.message || 'Error fetching correlation data');
+        if (isActive && !isBackground && !String(err).includes('Failed to fetch')) setError(err.message || 'Error fetching correlation data');
       } finally {
         if (isActive) {
            if (!isBackground) setLoading(false);

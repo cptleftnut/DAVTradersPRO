@@ -59,7 +59,7 @@ const DEFAULT_BETAS: Record<string, number> = {
   'BTC': 1.0,
   'ETHUSDT': 1.2,
   'ETH': 1.2,
-  'SOLUSDT': 1.5,
+  'SOLUSDC': 1.5,
   'SOL': 1.5,
   'BNBUSDT': 1.1,
   'BNB': 1.1,
@@ -136,7 +136,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
       ],
     },
     {
-      ticker: 'SOLUSDT',
+      ticker: 'SOLUSDC',
       lotCount: 1,
       avgBuyPrice: 142.5,
       lots: [

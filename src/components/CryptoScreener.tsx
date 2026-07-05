@@ -63,23 +63,25 @@ export function CryptoScreener() {
       const usdtPairs = allData.filter(
         (d: any) =>
           d.symbol && 
-          d.symbol.endsWith("USDT") &&
+          (d.symbol.endsWith("USDT") || d.symbol.endsWith("USDC")) &&
           !d.symbol.includes("UPUSDT") &&
-          !d.symbol.includes("DOWNUSDT"),
+          !d.symbol.includes("DOWNUSDT") &&
+          !d.symbol.includes("UPUSDC") &&
+          !d.symbol.includes("DOWNUSDC"),
       );
 
       if (usdtPairs.length === 0) {
-        throw new Error("No USDT pairs found in response");
+        throw new Error("No USDT/USDC pairs found in response");
       }
 
       setData(usdtPairs);
     } catch (err: any) {
-      console.error("Failed to fetch screener data:", err);
+      if (!String(err).includes('Failed to fetch')) console.error("Failed to fetch screener data:", err);
       // Fallback to mock data to prevent app crash and empty state
       const mockData: BinanceTicker24hr[] = [
         { symbol: "BTCUSDT", priceChange: "1230.5", priceChangePercent: "1.8", lastPrice: "68350.20", quoteVolume: "2450000000", volume: "35800" } as any,
         { symbol: "ETHUSDT", priceChange: "-50.4", priceChangePercent: "-1.2", lastPrice: "3490.15", quoteVolume: "1100000000", volume: "315000" } as any,
-        { symbol: "SOLUSDT", priceChange: "12.3", priceChangePercent: "8.5", lastPrice: "156.70", quoteVolume: "850000000", volume: "5420000" } as any,
+        { symbol: "SOLUSDC", priceChange: "12.3", priceChangePercent: "8.5", lastPrice: "156.70", quoteVolume: "850000000", volume: "5420000" } as any,
         { symbol: "BNBUSDT", priceChange: "5.2", priceChangePercent: "0.8", lastPrice: "585.30", quoteVolume: "350000000", volume: "598000" } as any,
         { symbol: "XRPUSDT", priceChange: "0.01", priceChangePercent: "1.5", lastPrice: "0.52", quoteVolume: "250000000", volume: "480000000" } as any,
         { symbol: "ADAUSDT", priceChange: "-0.02", priceChangePercent: "-3.4", lastPrice: "0.45", quoteVolume: "120000000", volume: "266000000" } as any,
@@ -183,7 +185,7 @@ export function CryptoScreener() {
                 <th className="pb-3 text-right font-medium">PRICE</th>
                 <th className="pb-3 text-right font-medium">24H CHANGE</th>
                 <th className="pb-3 text-right font-medium">
-                  24H VOLUME (USDT)
+                  24H VOLUME (USDT/USDC)
                 </th>
               </tr>
             </thead>

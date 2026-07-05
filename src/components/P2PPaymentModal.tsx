@@ -16,15 +16,17 @@ export const P2PPaymentModal = React.memo(function P2PPaymentModal({
   onClose,
   amount,
   currency = 'USDT',
-  binancePayId = '854921043',
+  binancePayId = '854921043', // Left here for interface compat, but we use TRC20 address
   referenceId
 }: P2PPaymentModalProps) {
   const [copiedRef, setCopiedRef] = useState(false);
-  const [copiedPayId, setCopiedPayId] = useState(false);
+  const [copiedAddr, setCopiedAddr] = useState(false);
+  const trc20Address = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 
   if (!isOpen) return null;
 
-  const qrData = encodeURIComponent(`binancepay://pay?id=${binancePayId}&amount=${amount}&currency=${currency}&ref=${referenceId}`);
+  const binancePayLink = `https://app.binance.com/qr/dplk?action=download&id=${binancePayId}&amount=${amount > 0 ? amount : ''}&currency=${currency}&ref=${referenceId}`;
+  const qrData = encodeURIComponent(binancePayLink);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}`;
 
   const handleCopy = (text: string, setCopied: React.Dispatch<React.SetStateAction<boolean>>, label: string) => {
@@ -47,8 +49,8 @@ export const P2PPaymentModal = React.memo(function P2PPaymentModal({
               <QrCode className="size-5 text-amber-500" />
             </div>
             <div>
-              <h3 className="font-bold text-white tracking-tight">Binance P2P Payment</h3>
-              <p className="text-xs text-gray-400">Scan QR to pay with Binance App</p>
+              <h3 className="font-bold text-white tracking-tight">Binance Pay</h3>
+              <p className="text-xs text-gray-400">Scan QR for at betale via Binance Pay link</p>
             </div>
           </div>
           <button 
@@ -63,28 +65,32 @@ export const P2PPaymentModal = React.memo(function P2PPaymentModal({
         <div className="p-8 flex flex-col items-center">
           
           <div className="bg-white p-4 rounded-2xl mb-6 shadow-lg">
-            <img src={qrUrl} alt="Binance Pay QR Code" className="w-48 h-48" />
+            <img src={qrUrl} alt="Binance Pay Link QR Code" className="w-48 h-48" />
           </div>
 
           <div className="text-center mb-8">
             <p className="text-sm text-gray-400 mb-1">Amount to pay</p>
             <div className="text-4xl font-black text-white tabular-nums tracking-tighter">
-              {amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xl text-amber-500">{currency}</span>
+              {amount > 0 ? (
+                 <>{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xl text-amber-500">{currency}</span></>
+              ) : (
+                 <span className="text-2xl text-emerald-400">Valgfrit beløb</span>
+              )}
             </div>
           </div>
 
           <div className="w-full space-y-4">
             <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 flex items-center justify-between group">
-              <div>
-                <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-1">Binance Pay ID</p>
-                <p className="font-mono text-sm text-gray-200">{binancePayId}</p>
+              <div className="overflow-hidden mr-4">
+                <p className="text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-1">Binance Pay Link</p>
+                <p className="font-mono text-sm text-gray-200 truncate">{binancePayLink}</p>
               </div>
               <button 
-                onClick={() => handleCopy(binancePayId, setCopiedPayId, 'Binance Pay ID')}
-                className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors"
-                title="Copy Binance Pay ID"
+                onClick={() => handleCopy(binancePayLink, setCopiedAddr, 'Binance Pay link')}
+                className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors shrink-0"
+                title="Copy Binance Pay link"
               >
-                {copiedPayId ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                {copiedAddr ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
               </button>
             </div>
 

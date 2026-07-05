@@ -21,7 +21,7 @@ Response.prototype.json = async function() {
 // Suppress unhandled rejections that might trigger top-level script errors
 const originalConsoleError = console.error;
 console.error = function(...args) {
-  if (args[0] && typeof args[0] === 'string' && (args[0].includes('Script error.') || args[0].includes('Script error'))) {
+  if (args.some(arg => String(arg).includes('Failed to fetch') || String(arg).includes('Script error'))) {
     return;
   }
   if (args[0] instanceof Error && args[0].message.includes('Script error')) {
@@ -32,7 +32,7 @@ console.error = function(...args) {
 
 window.addEventListener('error', (event) => {
   const msg = event.message || '';
-  if (typeof msg === 'string' && (msg.includes('Script error') || msg.includes('ResizeObserver'))) {
+  if (typeof msg === 'string' && (msg.includes('Script error') || msg.includes('ResizeObserver') || msg.includes('Failed to fetch'))) {
     event.preventDefault();
     event.stopImmediatePropagation();
   }
@@ -40,7 +40,7 @@ window.addEventListener('error', (event) => {
 window.addEventListener('unhandledrejection', (event) => {
   if (event.reason) {
     const msg = event.reason.message || String(event.reason);
-    if (msg.includes('Unexpected token') || msg.includes('RESOURCE_EXHAUSTED')) {
+    if (msg.includes('Unexpected token') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Failed to fetch')) {
       event.preventDefault();
       event.stopImmediatePropagation();
     }

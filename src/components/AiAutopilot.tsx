@@ -63,7 +63,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
     
     const interval = setInterval(() => {
       if (Math.random() > 0.6) {
-        const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT', 'XRPUSDT'];
+        const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDC', 'DOGEUSDT', 'XRPUSDT'];
         const types: ('BUY' | 'SELL')[] = ['BUY', 'SELL'];
         const newSignal = {
           id: Math.random().toString(36).substring(7),

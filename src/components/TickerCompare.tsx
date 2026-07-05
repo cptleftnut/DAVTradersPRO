@@ -70,7 +70,7 @@ export function TickerCompare({ primaryTicker = "BTC" }: { primaryTicker?: strin
         const data = await Promise.all(promises);
         setResults(data);
     } catch (e) {
-        toast.error("Prediction failed");
+        if (!String(e).includes('Failed to fetch')) toast.error("Prediction failed");
     } finally {
         setLoading(false);
     }

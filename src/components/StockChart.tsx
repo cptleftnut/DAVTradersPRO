@@ -485,10 +485,10 @@ export const StockChart = React.memo(function StockChart({
     if (!ticker) return false;
     const cleanAlertSym = (alert.symbol || "")
       .toUpperCase()
-      .replace(/USDT|USDC/g, "");
+      .replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, "");
     const cleanChartTick = (ticker || "")
       .toUpperCase()
-      .replace(/USDT|USDC/g, "");
+      .replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, "");
     return cleanAlertSym === cleanChartTick;
   });
 

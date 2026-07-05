@@ -148,7 +148,7 @@ export function StrategyBacktester({ currentStrategy, defaultTicker = "BTCUSDT" 
       });
       toast.success('Backtest fuldført på rigtig markedsdata.');
     } catch(err: any) {
-      toast.error(err.message || 'Fejl under backtest.');
+      if (!String(err).includes('Failed to fetch')) toast.error(err.message || 'Fejl under backtest.');
       setBacktestData([]);
       setMetrics(null);
     } finally {

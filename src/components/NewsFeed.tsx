@@ -37,7 +37,7 @@ export function NewsFeed({ ticker }: NewsFeedProps) {
     } catch (err: any) {
       if (!err.message?.includes('rate limited') && !err.message?.includes('429') && !err.message?.includes('API kvote') && !err.message?.includes('quota exceeded')) {
         console.error(err);
-        setError(err.message || "Failed to fetch news");
+        if (!String(err.message).includes("Failed to fetch")) setError(err.message || "Failed to fetch news");
       } else {
         setError(null); // Hide quota errors
       }

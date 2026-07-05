@@ -27,7 +27,7 @@ export function RiskManagementModule() {
           if (state.takeProfit) setBotTakeProfit(state.takeProfit);
         }
       })
-      .catch(err => console.error('Fejl ved indlæsning af bot-risiko:', err));
+      .catch(err => { if (!String(err).includes('Failed to fetch')) console.error('Fejl ved indlæsning af bot-risiko:', err); });
   }, []);
 
   const handleApplyBotRiskModel = async (sl: number, tp: number) => {

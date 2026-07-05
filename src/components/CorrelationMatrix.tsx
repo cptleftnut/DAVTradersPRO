@@ -31,7 +31,7 @@ import { toast } from 'sonner';
 const COINS = [
   { symbol: 'BTCUSDT', name: 'Bitcoin', baseBeta: 1.0, volatility: 0.02, correlationWithBtc: 1.00 },
   { symbol: 'ETHUSDT', name: 'Ethereum', baseBeta: 1.15, volatility: 0.025, correlationWithBtc: 0.85 },
-  { symbol: 'SOLUSDT', name: 'Solana', baseBeta: 1.50, volatility: 0.04, correlationWithBtc: 0.72 },
+  { symbol: 'SOLUSDC', name: 'Solana', baseBeta: 1.50, volatility: 0.04, correlationWithBtc: 0.72 },
   { symbol: 'AVAXUSDT', name: 'Avalanche', baseBeta: 1.65, volatility: 0.045, correlationWithBtc: 0.68 },
   { symbol: 'BNBUSDT', name: 'BNB Coin', baseBeta: 0.85, volatility: 0.018, correlationWithBtc: 0.60 },
   { symbol: 'DOGEUSDT', name: 'Dogecoin', baseBeta: 2.10, volatility: 0.055, correlationWithBtc: 0.48 },
@@ -54,7 +54,7 @@ export const CorrelationMatrix: React.FC = () => {
     const initialPrices: Record<string, number> = {
       BTCUSDT: 68000,
       ETHUSDT: 3500,
-      SOLUSDT: 155,
+      SOLUSDC: 155,
       AVAXUSDT: 45,
       BNBUSDT: 580,
       DOGEUSDT: 0.16
