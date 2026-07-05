@@ -38,8 +38,8 @@ export const PortfolioAllocationChart = ({ walletData }: { walletData: any }) =>
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#f3f4f6' }}
-              itemStyle={{ color: '#f3f4f6' }}
+              contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', color: 'var(--color-gray-100)' }}
+              itemStyle={{ color: 'var(--color-gray-100)' }}
             />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
           </PieChart>

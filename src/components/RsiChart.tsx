@@ -183,11 +183,11 @@ export function RsiChart({ data }: { data?: { name: string, rsi: number }[] }) {
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} tickMargin={10} minTickGap={30} />
-                <YAxis domain={[0, 100]} stroke="#9ca3af" fontSize={12} tickMargin={10} ticks={[0, 30, 50, 70, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-700)" />
+                <XAxis dataKey="name" stroke="var(--color-gray-400)" fontSize={12} tickMargin={10} minTickGap={30} />
+                <YAxis domain={[0, 100]} stroke="var(--color-gray-400)" fontSize={12} tickMargin={10} ticks={[0, 30, 50, 70, 100]} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#030712', borderColor: '#374151', color: '#f3f4f6', borderRadius: '12px', fontSize: '14px' }} 
+                  contentStyle={{ backgroundColor: 'var(--color-gray-950)', borderColor: 'var(--color-gray-700)', color: 'var(--color-gray-100)', borderRadius: '12px', fontSize: '14px' }} 
                   itemStyle={{ color: '#22d3ee' }}
                 />
                 {/* Overbought Region (>70) */}
@@ -197,7 +197,7 @@ export function RsiChart({ data }: { data?: { name: string, rsi: number }[] }) {
                 {/* @ts-ignore */}
                 <ReferenceArea y1={0} y2={30} fill="#10b981" fillOpacity={0.15} />
                 
-                <Line type="monotone" dataKey="rsi" stroke="#8b5cf6" strokeWidth={3} dot={{ fill: '#030712', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0, fill: '#f59e0b' }} isAnimationActive={!isZoomed} animationDuration={600} animationEasing="ease-out" />
+                <Line type="monotone" dataKey="rsi" stroke="#8b5cf6" strokeWidth={3} dot={{ fill: 'var(--color-gray-950)', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0, fill: '#f59e0b' }} isAnimationActive={!isZoomed} animationDuration={600} animationEasing="ease-out" />
               </LineChart>
             </ResponsiveContainer>
           </motion.div>

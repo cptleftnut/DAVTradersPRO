@@ -65,7 +65,7 @@ const CustomChartTooltip = ({
               typeof entry.value === "number"
                 ? entry.value.toFixed(2)
                 : entry.value;
-            let valueColor = entry.color || "#f3f4f6";
+            let valueColor = entry.color || "var(--color-gray-100)";
             let pctSuffix = "";
 
             if (entry.dataKey === "value") {
@@ -969,7 +969,7 @@ export const StockChart = React.memo(function StockChart({
     try {
       setIsDownloading(true);
       const canvas = await html2canvas(chartRef.current, {
-        backgroundColor: "#030712",
+        backgroundColor: "var(--color-gray-950)",
         scale: 2,
         logging: false,
         useCORS: true,
@@ -1070,10 +1070,10 @@ export const StockChart = React.memo(function StockChart({
           onMouseMove={isSecondaryChart ? undefined : handleMouseMove}
           onMouseLeave={isSecondaryChart ? undefined : handleMouseLeave}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-700)" />
           <XAxis
             dataKey="name"
-            stroke="#9ca3af"
+            stroke="var(--color-gray-400)"
             fontSize={10}
             tickMargin={10}
             minTickGap={30}
@@ -1081,7 +1081,7 @@ export const StockChart = React.memo(function StockChart({
           <YAxis
             yAxisId="left"
             domain={["auto", "auto"]}
-            stroke="#9ca3af"
+            stroke="var(--color-gray-400)"
             fontSize={10}
             tickMargin={10}
           />
@@ -1103,7 +1103,7 @@ export const StockChart = React.memo(function StockChart({
           )}
           <Tooltip
             content={<CustomChartTooltip secondaryTicker={secondaryTicker} />}
-            cursor={isSecondaryChart ? { stroke: "#4b5563", strokeWidth: 1, strokeDasharray: "4 4" } : false}
+            cursor={isSecondaryChart ? { stroke: "var(--color-gray-600)", strokeWidth: 1, strokeDasharray: "4 4" } : false}
           />
 
           <Bar
@@ -1185,7 +1185,7 @@ export const StockChart = React.memo(function StockChart({
             dataKey="value"
             stroke="#22d3ee"
             strokeWidth={2}
-            dot={{ fill: "#030712", strokeWidth: 1, r: 2 }}
+            dot={{ fill: "var(--color-gray-950)", strokeWidth: 1, r: 2 }}
             activeDot={{ r: 4, strokeWidth: 0, fill: "#f59e0b" }}
             isAnimationActive={false}
           />
@@ -1320,7 +1320,7 @@ export const StockChart = React.memo(function StockChart({
                   y={entry.price}
                   r={5}
                   fill={entry.side === "BUY" ? "#10b981" : "#ef4444"}
-                  stroke="#030712"
+                  stroke="var(--color-gray-950)"
                   strokeWidth={2}
                   isFront={true}
                   label={(props: any) => {

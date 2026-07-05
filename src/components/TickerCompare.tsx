@@ -175,10 +175,10 @@ export function TickerCompare({ primaryTicker = "BTC" }: { primaryTicker?: strin
                     ...results.reduce((acc, res) => ({ ...acc, [res.modelType]: res.maeHistory[i] }), {})
                   }))
                 }>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="day" stroke="#6b7280" fontSize={10} />
-                  <YAxis stroke="#6b7280" fontSize={10} />
-                  <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', fontSize: '12px' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-700)" />
+                  <XAxis dataKey="day" stroke="var(--color-gray-500)" fontSize={10} />
+                  <YAxis stroke="var(--color-gray-500)" fontSize={10} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', fontSize: '12px' }} />
                   {results.map(res => (
                     <Line 
                       key={res.modelType} 

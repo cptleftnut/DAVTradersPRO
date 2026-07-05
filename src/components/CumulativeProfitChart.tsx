@@ -45,11 +45,11 @@ export const CumulativeProfitChart: React.FC = () => {
       
       <ResponsiveContainer width="100%" height="80%">
         <AreaChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-700)" vertical={false} />
           <XAxis dataKey="time" hide />
-          <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(v) => `$${v}`} />
+          <YAxis stroke="var(--color-gray-500)" fontSize={12} tickFormatter={(v) => `$${v}`} />
           <Tooltip 
-            contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px', fontSize: '12px' }}
+            contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', borderRadius: '8px', fontSize: '12px' }}
             formatter={(value: number) => [`$${value.toFixed(2)}`, 'Cumulative Profit']}
           />
           <Area type="monotone" dataKey="cumulative" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2} />

@@ -167,7 +167,7 @@ export const WalletSummaryWidget = React.memo(({
                              </Pie>
                              <Tooltip 
                                  formatter={(value: number) => `${value.toFixed(2)}`}
-                                 contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '0.5rem', fontSize: '12px' }}
+                                 contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', borderRadius: '0.5rem', fontSize: '12px' }}
                                  itemStyle={{ color: '#fff' }}
                              />
                          </PieChart>

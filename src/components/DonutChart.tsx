@@ -43,7 +43,7 @@ export const DonutChart = ({ data }: { data: { label: string; value: number }[] 
     arcs.append("path")
       .attr("d", arc as any)
       .attr("fill", d => color(d.data.label))
-      .attr("stroke", "#111827")
+      .attr("stroke", "var(--color-gray-900)")
       .style("stroke-width", "2px");
 
     // Add tooltips

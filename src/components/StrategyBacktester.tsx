@@ -242,23 +242,23 @@ export function StrategyBacktester({ currentStrategy, defaultTicker = "BTCUSDT" 
             <div className="h-64 sm:h-72 w-full mt-4">
                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={backtestData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
-                     <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" vertical={false} />
                      <XAxis 
                         dataKey="date" 
-                        stroke="#4b5563" 
+                        stroke="var(--color-gray-600)" 
                         fontSize={10} 
                         tickMargin={10}
                         minTickGap={20}
                      />
                      <YAxis 
-                        stroke="#4b5563" 
+                        stroke="var(--color-gray-600)" 
                         fontSize={10}
                         tickFormatter={(val) => `${val}%`}
                         yAxisId="pnl"
                      />
                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '12px', fontSize: '12px' }}
-                        itemStyle={{ color: '#e5e7eb' }}
+                        contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', borderRadius: '12px', fontSize: '12px' }}
+                        itemStyle={{ color: 'var(--color-gray-200)' }}
                         formatter={(value: number) => [`${value.toFixed(2)}%`, 'PnL']}
                      />
                      <Line 

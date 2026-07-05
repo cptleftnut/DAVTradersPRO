@@ -1,19 +1,21 @@
 const fs = require('fs');
 let content = fs.readFileSync('src/App.tsx', 'utf8');
 
-content = content.replace(
-  `import { BinanceTradingPanel } from "./components/BinanceTradingPanel";`,
-  `import { BinanceTradingPanel } from "./components/BinanceTradingPanel";\nimport { OrderBook } from "./components/OrderBook";\nimport { PortfolioDistribution } from "./components/PortfolioDistribution";`
-);
-
-content = content.replace(
-  `const DEFAULT_ITEMS = ['BinanceTradingPanel', 'TradeHistoryTable'];`,
-  `const DEFAULT_ITEMS = ['BinanceTradingPanel', 'PortfolioDistribution', 'OrderBook', 'TradeHistoryTable'];`
-);
-
-content = content.replace(
-  `BinanceTradingPanel: <BinanceTradingPanel addLog={addLog} />,`,
-  `BinanceTradingPanel: <BinanceTradingPanel addLog={addLog} />,\n    PortfolioDistribution: <PortfolioDistribution />,\n    OrderBook: <OrderBook />,`
-);
-
-fs.writeFileSync('src/App.tsx', content);
+if (!content.includes('FeeAnalysisChart')) {
+  content = content.replace(
+    'import { TradeHistoryTable } from "./components/TradeHistoryTable";',
+    'import { TradeHistoryTable } from "./components/TradeHistoryTable";\nimport { FeeAnalysisChart } from "./components/FeeAnalysisChart";'
+  );
+  
+  content = content.replace(
+    "const DEFAULT_ITEMS = ['BinanceTradingPanel', 'PerformanceTrend', 'PortfolioDistribution', 'OrderBook', 'TradeHistoryTable'];",
+    "const DEFAULT_ITEMS = ['BinanceTradingPanel', 'PerformanceTrend', 'PortfolioDistribution', 'OrderBook', 'TradeHistoryTable', 'FeeAnalysisChart'];"
+  );
+  
+  content = content.replace(
+    'TradeHistoryTable: <TradeHistoryTable />',
+    'TradeHistoryTable: <TradeHistoryTable />,\n    FeeAnalysisChart: <FeeAnalysisChart />'
+  );
+  
+  fs.writeFileSync('src/App.tsx', content);
+}

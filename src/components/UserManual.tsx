@@ -414,7 +414,7 @@ export function UserManual({ onClose }: UserManualProps) {
               <div style="display: inline-block; padding: 12px 24px; border: 1px solid #d97706; border-radius: 9999px; font-variant: uppercase; font-size: 11px; font-family: monospace; letter-spacing: 3px; color: #f59e0b; margin-bottom: 30px;">
                 INVESTOR RETNINGSLINJER • v4.8
               </div>
-              <h1 style="font-size: 38px; font-weight: 900; letter-spacing: -1px; color: #ffffff; margin-bottom: 10px; text-transform: uppercase;">DAVs Platformen</h1>
+              <h1 style="font-size: 38px; font-weight: 900; letter-spacing: -1px; color: var(--color-white); margin-bottom: 10px; text-transform: uppercase;">DAVs Platformen</h1>
               <p style="font-size: 16px; color: #94a3b8; font-style: italic; max-width: 500px; margin: 0 auto; line-height: 1.5;">
                 Den Ultimative Håndbog & Brugervejledning til Moderne Porteføljestyring, AI Agenter & Automatiseret Handel
               </p>
@@ -519,7 +519,7 @@ export function UserManual({ onClose }: UserManualProps) {
               </div>
 
               <div style="margin-top: 50px; background-color: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px;">
-                <h4 style="margin: 0 0 10px 0; color: #ffffff; font-size: 13px; font-weight: 700;">Hurtig System-Vejviser:</h4>
+                <h4 style="margin: 0 0 10px 0; color: var(--color-white); font-size: 13px; font-weight: 700;">Hurtig System-Vejviser:</h4>
                 <p style="margin: 0; color: #94a3b8; font-size: 11px; line-height: 1.5;">
                   Denne manual dækker både live-handel og simuleret "Paper Trading". Sektion 5 dækker vores nyligt tilføjede **Portefølje Stresstest**, der lader dig simulere pludselige krak baseret direkte på historiske dagbogs-køb.
                 </p>
@@ -536,7 +536,7 @@ export function UserManual({ onClose }: UserManualProps) {
           <div style="height: 1040px; page-break-after: always; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="font-size: 10px; font-family: monospace; color: #f59e0b; margin-bottom: 4px;">KAPITEL 1</div>
-              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: #ffffff; margin-bottom: 20px; text-transform: uppercase;">
+              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: var(--color-white); margin-bottom: 20px; text-transform: uppercase;">
                 1. Introduktion og Systemvision
               </h1>
               <p style="font-size: 12px; line-height: 1.6; color: #cbd5e1; margin-bottom: 14px; text-align: justify;">
@@ -547,7 +547,7 @@ export function UserManual({ onClose }: UserManualProps) {
                 "Vores mission er at give den private investor de præcis samme analytiske superkræfter som de største hedgefonde på Wall Street, uden at de behøver at skrive en eneste linje kode."
               </div>
 
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 8px;">En Holistisk Tilgang til Handel</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 8px;">En Holistisk Tilgang til Handel</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #94a3b8; margin-bottom: 12px;">
                 DAVs adskiller sig fra options- og kryptoplatforme ved ikke blot at fokusere på teknisk analyse. Vi ser på tradere som biologiske systemer. Succesfuld handel kræver kontrol over tre primære elementer: <em>Data, Logik og Følelser</em>. Systemet adresserer alle tre aspekter ved at levere realtids WebSocket datastrømme, fem fuldautomatiske AI-agenter og en intelligent, følelsesmæssigt tagget handelsdagbog.
               </p>
@@ -560,7 +560,7 @@ export function UserManual({ onClose }: UserManualProps) {
                 <div style="display: flex; gap: 15px; align-items: center; margin: 10px 0;">
                   <div style="flex: 1; height: 50px; background-color: rgba(30, 27, 75, 0.4); border: 1px solid #312e81; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between;">
                     <div style="font-size: 8px; color: #64748b; font-family: monospace;">DATA RETRIEVAL</div>
-                    <div style="font-size: 12px; font-weight: bold; color: #ffffff;">99.98% uptime</div>
+                    <div style="font-size: 12px; font-weight: bold; color: var(--color-white);">99.98% uptime</div>
                   </div>
                   <div style="flex: 1; height: 50px; background-color: rgba(6, 78, 59, 0.4); border: 1px solid #065f46; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between;">
                     <div style="font-size: 8px; color: #64748b; font-family: monospace;">AI ACCURACY</div>
@@ -586,11 +586,11 @@ export function UserManual({ onClose }: UserManualProps) {
           <div style="height: 1040px; page-break-after: always; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="font-size: 10px; font-family: monospace; color: #f59e0b; margin-bottom: 4px;">KAPITEL 2</div>
-              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: #ffffff; margin-bottom: 20px; text-transform: uppercase;">
+              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: var(--color-white); margin-bottom: 20px; text-transform: uppercase;">
                 2. Live Trading og Ordre-eksekvering
               </h1>
               
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">Realtids Datastrøm (WebSockets vs. Polling)</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">Realtids Datastrøm (WebSockets vs. Polling)</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px; text-align: justify;">
                 Forbindelsen til markedet er etableret med ultra-lav latenstid. For kryptovaluta lytter systemet til direkte WebSockets fra Binance, mens traditionelle aktier (f.eks AAPL, TSLA) opdateres automatisk hvert 5. sekund via præcisionstidsopslag (polling).
               </p>
@@ -605,19 +605,19 @@ export function UserManual({ onClose }: UserManualProps) {
                 </thead>
                 <tbody style="color: #cbd5e1; font-size: 10.5px;">
                   <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="padding: 8px; font-weight: bold; color: #ffffff;">Markedsordre</td>
+                    <td style="padding: 8px; font-weight: bold; color: var(--color-white);">Markedsordre</td>
                     <td style="padding: 8px;">Udføres øjeblikkeligt til børskurs.</td>
                     <td style="padding: 8px; color: #f87171;">Glidende pris (Slippage)</td>
                   </tr>
                   <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="padding: 8px; font-weight: bold; color: #ffffff;">Limitordre</td>
+                    <td style="padding: 8px; font-weight: bold; color: var(--color-white);">Limitordre</td>
                     <td style="padding: 8px;">Afventer specifik triggerpris før udførelse.</td>
                     <td style="padding: 8px; color: #34d399;">Ingen tabs-risiko</td>
                   </tr>
                 </tbody>
               </table>
 
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">Spot Wallet & Demo Simulering</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">Spot Wallet & Demo Simulering</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px;">
                 Hvis du ikke indtaster krypterede API-nøgler, kører appen automatisk i "Paper Trading"-mode som en risikofri sandkasse med $10.000 fiktive midler. Aktiver, salgsbalancer og statistikker opdateres dynamisk i forhold til markedets faktiske live-kurser.
               </p>
@@ -630,7 +630,7 @@ export function UserManual({ onClose }: UserManualProps) {
                 <div style="margin: 10px 0; display: flex; flex-direction: column; gap: 8px;">
                   <div>
                     <div style="display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 2px;">
-                      <span style="color: #ffffff; font-weight: bold;">BTC (Bitcoin Holding)</span>
+                      <span style="color: var(--color-white); font-weight: bold;">BTC (Bitcoin Holding)</span>
                       <span style="color: #94a3b8;">55.2% ($5,520.00)</span>
                     </div>
                     <div style="height: 6px; background-color: #1e293b; border-radius: 3px; overflow: hidden;">
@@ -639,7 +639,7 @@ export function UserManual({ onClose }: UserManualProps) {
                   </div>
                   <div>
                     <div style="display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 2px;">
-                      <span style="color: #ffffff; font-weight: bold;">ETH (Ethereum Holding)</span>
+                      <span style="color: var(--color-white); font-weight: bold;">ETH (Ethereum Holding)</span>
                       <span style="color: #94a3b8;">28.4% ($2,840.00)</span>
                     </div>
                     <div style="height: 6px; background-color: #1e293b; border-radius: 3px; overflow: hidden;">
@@ -648,7 +648,7 @@ export function UserManual({ onClose }: UserManualProps) {
                   </div>
                   <div>
                     <div style="display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 2px;">
-                      <span style="color: #ffffff; font-weight: bold;">USDT (Liquid Cash)</span>
+                      <span style="color: var(--color-white); font-weight: bold;">USDT (Liquid Cash)</span>
                       <span style="color: #94a3b8;">16.4% ($1,640.00)</span>
                     </div>
                     <div style="height: 6px; background-color: #1e293b; border-radius: 3px; overflow: hidden;">
@@ -671,7 +671,7 @@ export function UserManual({ onClose }: UserManualProps) {
           <div style="height: 1040px; page-break-after: always; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="font-size: 10px; font-family: monospace; color: #f59e0b; margin-bottom: 4px;">KAPITEL 3</div>
-              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: #ffffff; margin-bottom: 20px; text-transform: uppercase;">
+              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: var(--color-white); margin-bottom: 20px; text-transform: uppercase;">
                 3. De 5 AI Autopilot-Agenter i Dybden
               </h1>
               
@@ -713,7 +713,7 @@ export function UserManual({ onClose }: UserManualProps) {
                     <div>[TREND DETECTOR]: <span style="color: #34d399;">BULLISH</span></div>
                     <div>[NEWS SENTIMENT]: <span style="color: #34d399;">+72/100 (GOOD)</span></div>
                     <div>[RSI REGISTRY]: <span style="color: #f59e0b;">54.5 (STABLE)</span></div>
-                    <div>[RECOMMENDED SIZE]: <span style="color: #ffffff;">0.045 BTC</span></div>
+                    <div>[RECOMMENDED SIZE]: <span style="color: var(--color-white);">0.045 BTC</span></div>
                   </div>
                   <div style="width: 120px; height: 75px; background: rgba(59, 130, 246, 0.05); border: 1px solid #1e293b; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative;">
                     <div style="width: 50px; height: 50px; border: 3px double #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
@@ -740,16 +740,16 @@ export function UserManual({ onClose }: UserManualProps) {
           <div style="height: 1040px; page-break-after: always; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="font-size: 10px; font-family: monospace; color: #f59e0b; margin-bottom: 4px;">KAPITEL 4</div>
-              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: #ffffff; margin-bottom: 20px; text-transform: uppercase;">
+              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: var(--color-white); margin-bottom: 20px; text-transform: uppercase;">
                 4. Risikostyring, Alarmer og Notifikationer
               </h1>
               
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">Kompakt Trailing Stop Loss Logik</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">Kompakt Trailing Stop Loss Logik</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px; text-align: justify;">
                 Modsat et fast stop, følger et Trailing Stop (glidende nødbremse) prisen opad. Dette tillader investorer at lade vinderpositioner løbe frit og samtidig garantere en bund mod pludselige vendinger.
               </p>
 
-              <div style="background-color: #030712; border: 1px solid #1e293b; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 9.5px; color: #f59e0b; margin-bottom: 18px; line-height: 1.4;">
+              <div style="background-color: var(--color-gray-950); border: 1px solid #1e293b; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 9.5px; color: #f59e0b; margin-bottom: 18px; line-height: 1.4;">
                 // Trailing Stop Beregningseksempel:<br>
                 let stopPrice = highestPrice * (1 - stopPercent / 100);<br>
                 if (currentPrice &gt; highestPrice) {<br>
@@ -758,7 +758,7 @@ export function UserManual({ onClose }: UserManualProps) {
                 }
               </div>
 
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">AI Voice TTS & Lydmønstre</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">AI Voice TTS & Lydmønstre</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px;">
                 Platformen har et integreret stemmesystem, der udtaler handler højt på dansk. Det sikre, at du ikke skal stirre på skærmen hele dagen, og modtager rige visuelle og auditive push-beskeder ved kritiske niveauer.
               </p>
@@ -798,11 +798,11 @@ export function UserManual({ onClose }: UserManualProps) {
           <div style="height: 1040px; page-break-after: always; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="font-size: 10px; font-family: monospace; color: #f59e0b; margin-bottom: 4px;">KAPITEL 5</div>
-              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: #ffffff; margin-bottom: 20px; text-transform: uppercase;">
+              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: var(--color-white); margin-bottom: 20px; text-transform: uppercase;">
                 5. Portefølje, Stresstest og Handelsjournal
               </h1>
 
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">Nyt modul: Avanceret Portefølje Stresstest</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">Nyt modul: Avanceret Portefølje Stresstest</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px; text-align: justify;">
                 Det seneste gennembrud i vores analysesuite er <strong>Portefølje Stresstest</strong> sektionen. Modulet trækker uafsluttede \'BUY\' positioner fra din handelsdagbog, finder deres gældende markedskurser via Binance live-proxy, og lader dig simulere pludselige crash-scenarier.
               </p>
@@ -811,7 +811,7 @@ export function UserManual({ onClose }: UserManualProps) {
                 <strong>Oprustet Sårbarhedsvurdering:</strong> Chokteste din portefølje baseret på beta-koefficienter. Systemet simulerer, at volatile altcoins som DOGE (beta: 2.2) styrtdykker væsentligt hårdere end Bitcoin (beta: 1.0) under et systemisk markedskollaps.
               </div>
 
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">Intelligent Handelsdagbog med følelmesfulde mærker</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">Intelligent Handelsdagbog med følelmesfulde mærker</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px;">
                 Mange tabskyldes følelsesmæssig ubalance. Vores inline journal udbeder sig automatiske tags (såsom \'fomo\' eller \'emotional trading\') ved enhver transaktion. Det tillader investorer at granske statistikker og undgå fremtidige adfærdsfejl.
               </p>
@@ -859,11 +859,11 @@ export function UserManual({ onClose }: UserManualProps) {
           <div style="height: 1040px; page-break-after: always; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="font-size: 10px; font-family: monospace; color: #f59e0b; margin-bottom: 4px;">KAPITEL 6</div>
-              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: #ffffff; margin-bottom: 20px; text-transform: uppercase;">
+              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: var(--color-white); margin-bottom: 20px; text-transform: uppercase;">
                 6. Google Calendar Synkronisering & Integrationer
               </h1>
               
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">Automatisk PnL overførsel to Google Calendar</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">Automatisk PnL overførsel to Google Calendar</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px; text-align: justify;">
                 Hver aften kl. 23:59 (eller ved manuel trigging) overfører platformen dags-performance-rapporter til din private Google-kalender. Her logføres dagligt vundne/tabte handler, samlet profit og succesrater i et visuelt kalender-view.
               </p>
@@ -874,7 +874,7 @@ export function UserManual({ onClose }: UserManualProps) {
                 Indhold: "Opgørelse over lukkede positioner, gennemsnitlig gevinstrate samt anslået holdetid for aktive kryptoer."
               </div>
 
-              <h3 style="font-size: 13px; color: #ffffff; font-weight: bold; margin-bottom: 6px;">Sikkerhed og API Kryptering</h3>
+              <h3 style="font-size: 13px; color: var(--color-white); font-weight: bold; margin-bottom: 6px;">Sikkerhed og API Kryptering</h3>
               <p style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 12px;">
                 Fuld sikkerhed på dine værdier. Dine API keys gemmes udelukkende lokalt i browserens hukommelse, krypteret via sandboxed storage, og forlader aldrig nogensinde din computer. Ingen medarbejdere eller eksterne instanser har adgang til dine handelsadgange.
               </p>
@@ -940,23 +940,23 @@ export function UserManual({ onClose }: UserManualProps) {
           <div style="height: 1040px; padding: 40px 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="font-size: 10px; font-family: monospace; color: #f59e0b; margin-bottom: 4px;">KAPITEL 7</div>
-              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: #ffffff; margin-bottom: 20px; text-transform: uppercase;">
+              <h1 style="font-size: 20px; font-weight: 800; border-bottom: 1px solid #1e293b; padding-bottom: 8px; color: var(--color-white); margin-bottom: 20px; text-transform: uppercase;">
                 7. FAQ & Fejlfindingsprotokoller
               </h1>
 
               <div style="display: flex; flex-direction: column; gap: 15px; font-size: 11.5px; line-height: 1.5;">
                 <div>
-                  <h4 style="margin: 0 0 4px 0; color: #ffffff; font-weight: bold;">Hvorfor slår systemet over i "Paper Trading" tilstand?</h4>
+                  <h4 style="margin: 0 0 4px 0; color: var(--color-white); font-weight: bold;">Hvorfor slår systemet over i "Paper Trading" tilstand?</h4>
                   <p style="margin: 0; color: #94a3b8;">Dette er systemets beskyttelses-mekanisme. Det indikerer, at du ikke har forbundet dine egne Binance API-nøgler endnu, så du risikofrit kan teste alarmer og AI Autopiloter.</p>
                 </div>
 
                 <div>
-                  <h4 style="margin: 0 0 4px 0; color: #ffffff; font-weight: bold;">Hvorfor svinger tallene i "Aktive Positioner" så hurtigt?</h4>
+                  <h4 style="margin: 0 0 4px 0; color: var(--color-white); font-weight: bold;">Hvorfor svinger tallene i "Aktive Positioner" så hurtigt?</h4>
                   <p style="margin: 0; color: #94a3b8;">Dette skyldes vores integrerede realtids-websockets. Systemet lytter lynhurtigt to Binance sekund for sekund og genberegner din urealiserede PnL live.</p>
                 </div>
 
                 <div>
-                  <h4 style="margin: 0 0 4px 0; color: #ffffff; font-weight: bold;">Hvordan eksporterer jeg historiske sager for skat?</h4>
+                  <h4 style="margin: 0 0 4px 0; color: var(--color-white); font-weight: bold;">Hvordan eksporterer jeg historiske sager for skat?</h4>
                   <p style="margin: 0; color: #94a3b8;">Klik blot på "Eksporter til CSV" knappen i din handelsdagbog eller portefølje. Det gemmer en standard CSV-fil, du direkte kan importere i Excel eller Google Sheets.</p>
                 </div>
               </div>

@@ -23,8 +23,8 @@ export function RiskMatrix() {
         <div className="w-full h-64 lg:w-1/2">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={sectorData}>
-              <PolarGrid stroke="#374151" />
-              <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'monospace' }} />
+              <PolarGrid stroke="var(--color-gray-700)" />
+              <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--color-gray-400)', fontSize: 10, fontFamily: 'monospace' }} />
               <PolarRadiusAxis angle={30} domain={[0, 150]} tick={false} axisLine={false} />
               <Radar name="Eksponering" dataKey="A" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.3} />
             </RadarChart>

@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Bot, Zap, Shield, Rocket, Activity, Settings, BarChart, ChevronRight, CheckCircle2, XCircle, BrainCircuit, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { speakTradeAction } from '../lib/speech';
+import { logAuditEvent } from '../lib/auditLogger';
 
 export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT', onSymbolChange }: { symbol?: string, onSymbolChange?: (symbol: string) => void }) {
   const [isActive, setIsActive] = useState(false);
+  const [maintenanceActive, setMaintenanceActive] = useState(false);
   const [autoRotatePairs, setAutoRotatePairs] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [riskLevel, setRiskLevel] = useState<'low' | 'medium' | 'high'>('medium');
@@ -42,21 +44,73 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
     }
   };
 
-  const toggleAutopilot = () => {
-    setIsActive(!isActive);
+  const toggleAutopilot = async () => {
+    try {
+      const res = await fetch('/api/bot/state');
+      if (res.ok) {
+        const state = await res.json();
+        if (state.maintenanceMode) {
+          setMaintenanceActive(true);
+          setIsActive(false);
+          toast.error("Systemet er i vedligeholdelsestilstand. Du kan ikke aktivere trading robotter lige nu.");
+          return;
+        }
+      }
+    } catch (e) {}
+
+    if (maintenanceActive) {
+      toast.error("Systemet er i vedligeholdelsestilstand. Du kan ikke aktivere trading robotter lige nu.");
+      return;
+    }
+
+    const nextActive = !isActive;
+    setIsActive(nextActive);
     const newLog = {
       time: new Date().toLocaleTimeString(),
-      message: !isActive ? `AI Autopilot ENABLED. Risk: ${riskLevel.toUpperCase()}, Strategy: ${strategy.toUpperCase()}` : 'AI Autopilot DISABLED. Entering manual mode.',
-      type: !isActive ? ('success' as const) : ('warning' as const)
+      message: nextActive ? `AI Autopilot ENABLED. Risk: ${riskLevel.toUpperCase()}, Strategy: ${strategy.toUpperCase()}` : 'AI Autopilot DISABLED. Entering manual mode.',
+      type: nextActive ? ('success' as const) : ('warning' as const)
     };
     setLogs([newLog, ...logs]);
-    if (!isActive) {
+
+    logAuditEvent({
+      type: 'config',
+      action: nextActive ? 'AUTOPILOT_BOT_START' : 'AUTOPILOT_BOT_STOP',
+      details: nextActive 
+        ? `AI Autopilot blev startet for ${symbol}. Risiko: ${riskLevel.toUpperCase()}, Strategi: ${strategy.toUpperCase()}.`
+        : `AI Autopilot blev deaktiveret for ${symbol}. Systemet overgik til manuel tilstand.`,
+      status: nextActive ? 'success' : 'warning',
+      user: 'Bruger'
+    });
+
+    if (nextActive) {
       toast.success('AI Autopilot Aktiveret');
     } else {
       toast.info('AI Autopilot Deaktiveret');
       setSignals([]);
     }
   };
+
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const res = await fetch('/api/bot/state');
+        if (res.ok) {
+          const state = await res.json();
+          if (state.maintenanceMode) {
+            setMaintenanceActive(true);
+            setIsActive(false);
+          } else {
+            setMaintenanceActive(false);
+          }
+        }
+      } catch (err) {
+        console.error("Fejl ved vedligeholdelsestjek i Copilot:", err);
+      }
+    };
+    checkMaintenance();
+    const interval = setInterval(checkMaintenance, 10000); // Check every 10s
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!isActive) return;
@@ -125,10 +179,27 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
       speakTradeAction(type);
     }
     setLogs(prev => [{ time: new Date().toLocaleTimeString(), message: `EXECUTED: ${type} ${symbol}`, type: 'success' }, ...prev]);
+
+    logAuditEvent({
+      type: 'trade',
+      action: 'CO_PILOT_TRADE_EXECUTED',
+      details: `Godkendt handelsordre eksekveret via AI Copilot: ${type} ${symbol} til markedspris.`,
+      status: 'success',
+      user: 'AI Copilot'
+    });
   };
 
   const rejectSignal = (id: string) => {
+    const targetSignal = signals.find(s => s.id === id);
     setSignals(prev => prev.filter(s => s.id !== id));
+
+    logAuditEvent({
+      type: 'trade',
+      action: 'CO_PILOT_TRADE_REJECTED',
+      details: `Foreslået handelsordre for ${targetSignal?.type || 'ORDRE'} ${targetSignal?.symbol || ''} (ID: ${id}) blev manuelt afvist.`,
+      status: 'warning',
+      user: 'Bruger'
+    });
   };
 
   return (
@@ -142,12 +213,19 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
               <Bot className={`size-6 ${isActive ? 'text-emerald-500 animate-pulse' : 'text-gray-600'}`} />
             </h2>
             
-            <button 
-              onClick={toggleAutopilot}
-              className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest transition-all ${isActive ? 'bg-rose-500/20 text-rose-500 border border-rose-500/50 hover:bg-rose-500/30' : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/30 hover:border-emerald-500/60'}`}
-            >
-              {isActive ? 'Stop AI Copilot' : 'Start AI Copilot'}
-            </button>
+            {maintenanceActive ? (
+              <div id="copilot-locked-warning" className="w-full py-4 px-2 rounded-xl font-bold uppercase tracking-widest text-[11px] text-center bg-amber-500/10 text-amber-500 border border-amber-500/30 animate-pulse">
+                ⚠️ Låst pga. Vedligeholdelse
+              </div>
+            ) : (
+              <button 
+                id="toggle-copilot-btn"
+                onClick={toggleAutopilot}
+                className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest transition-all cursor-pointer ${isActive ? 'bg-rose-500/20 text-rose-500 border border-rose-500/50 hover:bg-rose-500/30' : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/30 hover:border-emerald-500/60'}`}
+              >
+                {isActive ? 'Stop AI Copilot' : 'Start AI Copilot'}
+              </button>
+            )}
 
             <div className="mt-8 space-y-4">
               <div>
@@ -156,7 +234,16 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                   {['low', 'medium', 'high'].map((level) => (
                     <button 
                       key={level}
-                      onClick={() => setRiskLevel(level as any)}
+                      onClick={() => {
+                        setRiskLevel(level as any);
+                        logAuditEvent({
+                          type: 'config',
+                          action: 'AUTOPILOT_RISK_CHANGED',
+                          details: `AI Autopilot risikoniveau ændret fra ${riskLevel.toUpperCase()} til ${level.toUpperCase()}.`,
+                          status: 'info',
+                          user: 'Bruger'
+                        });
+                      }}
                       disabled={isActive}
                       className={`py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${riskLevel === level ? 'bg-gray-800 text-white border-gray-600' : 'bg-gray-950 border-gray-900 text-gray-500 hover:text-gray-300'} disabled:opacity-50`}
                     >
@@ -170,7 +257,17 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Core Strategy</label>
                 <select 
                   value={strategy}
-                  onChange={(e) => setStrategy(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setStrategy(val);
+                    logAuditEvent({
+                      type: 'config',
+                      action: 'AUTOPILOT_STRATEGY_CHANGED',
+                      details: `AI Autopilot handelsstrategi ændret til ${val.toUpperCase()}.`,
+                      status: 'info',
+                      user: 'Bruger'
+                    });
+                  }}
                   disabled={isActive}
                   className="w-full bg-gray-950 border border-gray-900 rounded-lg p-3 text-sm font-mono text-gray-300 outline-none focus:border-amber-500 disabled:opacity-50 mb-4"
                 >
@@ -183,7 +280,23 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                 <label className="flex items-center justify-between cursor-pointer group mt-4">
                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest group-hover:text-gray-300 transition-colors" title="Skift automatisk til den mest volatile trading pair på markedet">Auto-Rotate Trading Pairs</span>
                    <div className={`relative w-8 h-4 rounded-full transition-colors ${autoRotatePairs ? 'bg-amber-500' : 'bg-gray-800'}`}>
-                      <input type="checkbox" className="sr-only" checked={autoRotatePairs} onChange={() => setAutoRotatePairs(!autoRotatePairs)} disabled={isActive} />
+                      <input 
+                        type="checkbox" 
+                        className="sr-only" 
+                        checked={autoRotatePairs} 
+                        onChange={() => {
+                          const nextVal = !autoRotatePairs;
+                          setAutoRotatePairs(nextVal);
+                          logAuditEvent({
+                            type: 'config',
+                            action: 'AUTOPILOT_AUTO_ROTATE_CHANGED',
+                            details: `Auto-Rotate Trading Pairs blev ${nextVal ? 'aktiveret' : 'deaktiveret'}.`,
+                            status: 'info',
+                            user: 'Bruger'
+                          });
+                        }} 
+                        disabled={isActive} 
+                      />
                       <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${autoRotatePairs ? 'translate-x-4' : 'translate-x-0'}`}></div>
                    </div>
                 </label>

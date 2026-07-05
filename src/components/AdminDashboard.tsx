@@ -293,8 +293,8 @@ export function AdminDashboard({ onClose, adminEmail }: AdminDashboardProps) {
                         </Pie>
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "#030712",
-                            borderColor: "#1f2937",
+                            backgroundColor: "var(--color-gray-950)",
+                            borderColor: "var(--color-gray-800)",
                             borderRadius: "0.5rem",
                             fontSize: "10px",
                             fontFamily: "monospace",
@@ -312,7 +312,7 @@ export function AdminDashboard({ onClose, adminEmail }: AdminDashboardProps) {
                           wrapperStyle={{
                             fontSize: "10px",
                             fontFamily: "monospace",
-                            color: "#9ca3af",
+                            color: "var(--color-gray-400)",
                           }}
                         />
                       </PieChart>

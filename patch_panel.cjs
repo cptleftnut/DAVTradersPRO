@@ -1,21 +1,14 @@
 const fs = require('fs');
 let content = fs.readFileSync('src/components/BinanceTradingPanel.tsx', 'utf8');
 
-// Update widget order default and parse logic
 content = content.replace(
-  `if (parsed.length === 6) return parsed;`,
-  `if (parsed && Array.isArray(parsed)) { if (!parsed.includes('orderBook')) parsed.push('orderBook'); return parsed; }`
+  "              let posChanged = state.activePositions !== prevActivePosRef.current;",
+  "              let posChanged = state.activePositions !== prevActivePosRef.current;\n              if (state.lastError && state.lastError !== prevLastErrorRef.current) {\n                 addLog(`Fejl fra trading bot: ${state.lastError}`, 'error');\n                 prevLastErrorRef.current = state.lastError;\n                 // Ensure we show it as toast too if it's new\n                 toast.error(`Bot Fejl: ${state.lastError}`);\n              }"
 );
 
 content = content.replace(
-  `return ['agentControl', 'walletSummary', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];`,
-  `return ['agentControl', 'walletSummary', 'orderBook', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];`
-);
-
-// Import OrderBook
-content = content.replace(
-  `import { PortfolioRebalancer } from './PortfolioRebalancer';`,
-  `import { PortfolioRebalancer } from './PortfolioRebalancer';\nimport { OrderBook } from './OrderBook';`
+  "  const prevActivePosRef = useRef(0);",
+  "  const prevActivePosRef = useRef(0);\n  const prevLastErrorRef = useRef<string | null>(null);"
 );
 
 fs.writeFileSync('src/components/BinanceTradingPanel.tsx', content);

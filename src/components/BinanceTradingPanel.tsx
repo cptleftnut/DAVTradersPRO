@@ -13,12 +13,18 @@ import { initAuth, googleSignIn, logout, getAccessToken, db, auth as firebaseAut
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { MarketScanner } from './MarketScanner';
 import { speakTradeAction } from '../lib/speech';
+import { logAuditEvent } from '../lib/auditLogger';
 import { AiProModal } from './AiProModal';
+import { TradeDiagnosticModal } from './TradeDiagnosticModal';
+import { TradeErrorLog } from './TradeErrorLog';
+import { ShieldAlert } from 'lucide-react';
+import { TradingPresetsManager, TradingPreset } from './TradingPresetsManager';
 import { WalletSummaryWidget } from './WalletSummaryWidget';
 import { PortfolioSummary } from './PortfolioSummary';
 import { TickerTape } from './TickerTape';
 import { P2PPaymentModal } from './P2PPaymentModal';
 import { CorrelationMatrix } from './CorrelationMatrix';
+import { RiskMetricsDashboard } from './RiskMetricsDashboard';
 import { DesignCenter } from './DesignCenter';
 import { StrategyBacktester } from './StrategyBacktester';
 import { StockChart } from './StockChart';
@@ -89,6 +95,7 @@ const AVAILABLE_PAIRS = [
 
 export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'info'|'warn'|'error') => void }) {
   const [showProModal, setShowProModal] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [googleUser, setGoogleUser] = useState<any>(null);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [needsGoogleAuth, setNeedsGoogleAuth] = useState(true);
@@ -101,12 +108,13 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         const parsed = JSON.parse(saved);
         if (parsed && Array.isArray(parsed)) { 
      if (!parsed.includes('orderBook')) parsed.push('orderBook'); 
-     if (!parsed.includes('portfolioDistribution')) parsed.push('portfolioDistribution'); 
+     if (!parsed.includes('portfolioDistribution')) parsed.push('portfolioDistribution');
+     if (!parsed.includes('tradeErrorLog')) parsed.push('tradeErrorLog'); 
      return parsed; 
   }
       } catch (e) {}
     }
-    return ['agentControl', 'walletSummary', 'portfolioDistribution', 'orderBook', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];
+    return ['agentControl', 'walletSummary', 'portfolioDistribution', 'orderBook', 'tradeErrorLog', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];
   });
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -293,13 +301,15 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   useEffect(() => {
     localStorage.setItem('binance_pref_compare_b', compareStrategyB);
   }, [compareStrategyB]);
-  const [allocation, setAllocation] = useState(2);
+  const [allocation, setAllocation] = useState(10);
   const [takeProfit, setTakeProfit] = useState(10.0);
   const [stopLoss, setStopLoss] = useState(5.0);
   const [stopLossType, setStopLossType] = useState<'percentage'|'fixed'>('percentage');
+  const [enableAutoStopLoss, setEnableAutoStopLoss] = useState(true);
   
   // Advanced Risk Management parameters
   const [useTrailingStop, setUseTrailingStop] = useState(false);
+  const [useSmartRoute, setUseSmartRoute] = useState(true);
   const [dynamicSizing, setDynamicSizing] = useState(false);
   const [diversifySectors, setDiversifySectors] = useState(false);
   const [maxRiskPerTrade, setMaxRiskPerTrade] = useState(1.5); // % of account value
@@ -308,7 +318,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const [circuitBreakerLimit, setCircuitBreakerLimit] = useState(5.0); // % daily drop limit
   const [enableDCA, setEnableDCA] = useState(false);
   const [dcaIntervalHours, setDcaIntervalHours] = useState(24);
-  const [dcaAllocation, setDcaAllocation] = useState(1.0);
+  const [dcaAllocation, setDcaAllocation] = useState(10.0);
   const [stockTicker, setStockTicker] = useState('AAPL');
   const [mockStockData, setMockStockData] = useState<{name: string, value: number, volume?: number}[]>([]);
 
@@ -328,7 +338,14 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     }
     setMockStockData(data);
   }, [stockTicker]);
-  const [panelTab, setPanelTab] = useState<'dashboard' | 'live' | 'history' | 'wallet' | 'alerts' | 'analyses' | 'compare' | 'backtest' | 'journal' | 'scanner' | 'autopilot' | 'macro' | 'correlation' | 'design' | 'stocks'>('dashboard');
+  const [panelTab, setPanelTab] = useState<'dashboard' | 'live' | 'history' | 'wallet' | 'alerts' | 'analyses' | 'compare' | 'backtest' | 'journal' | 'scanner' | 'autopilot' | 'macro' | 'correlation' | 'risk' | 'design' | 'stocks'>('dashboard');
+
+  useEffect(() => {
+    (window as any).setBinancePanelTab = setPanelTab;
+    return () => {
+      delete (window as any).setBinancePanelTab;
+    };
+  }, [setPanelTab]);
   const [layoutMode, setLayoutMode] = useState<'detailed' | 'compact'>(() => {
     return (localStorage.getItem('binance_panel_layout_mode') as 'detailed' | 'compact') || 'detailed';
   });
@@ -350,7 +367,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     symbol: 'BTCUSDT',
     allocation: 2,
     stopLoss: 5,
-    takeProfit: 10
+    takeProfit: 10,
+    enableAutoStopLoss: true
   });
 
   useEffect(() => {
@@ -359,11 +377,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     if (botConfig.stopLoss !== stopLoss) setStopLoss(botConfig.stopLoss);
     if (botConfig.takeProfit !== takeProfit) setTakeProfit(botConfig.takeProfit);
     if (botConfig.isActive !== isBotActive) setIsBotActive(botConfig.isActive);
-  }, [botConfig.symbol, botConfig.allocation, botConfig.stopLoss, botConfig.takeProfit, botConfig.isActive]);
+    if (botConfig.enableAutoStopLoss !== undefined && botConfig.enableAutoStopLoss !== enableAutoStopLoss) setEnableAutoStopLoss(botConfig.enableAutoStopLoss);
+  }, [botConfig.symbol, botConfig.allocation, botConfig.stopLoss, botConfig.takeProfit, botConfig.isActive, botConfig.enableAutoStopLoss]);
 
   useEffect(() => {
-    updateBotConfig({ symbol, allocation, stopLoss, takeProfit, isActive: isBotActive });
-  }, [symbol, allocation, stopLoss, takeProfit, isBotActive]);
+    updateBotConfig({ symbol, allocation, stopLoss, takeProfit, isActive: isBotActive, enableAutoStopLoss });
+  }, [symbol, allocation, stopLoss, takeProfit, isBotActive, enableAutoStopLoss]);
 
   const handleThemeChange = (theme: 'obsidian' | 'alpine' | 'sage') => {
     setActiveTheme(theme);
@@ -666,6 +685,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
   
     const prevActivePosRef = useRef(0);
+  const prevLastErrorRef = useRef<string | null>(null);
   const prevTestStatusRef = useRef(false);
 
 
@@ -832,10 +852,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
           if (state.unpaidFee !== undefined) setUnpaidFee(state.unpaidFee);
           setIsLiveTrading(state.isLiveTrading);
           setSymbol(state.symbol || 'BTCUSDT');
-          setAllocation(state.allocation || 2);
+          setAllocation(state.allocation || 10);
           setTakeProfit(state.takeProfit || 10.0);
           setStopLoss(state.stopLoss || 5.0);
           setStopLossType(state.stopLossType || 'percentage');
+          if (state.enableAutoStopLoss !== undefined) setEnableAutoStopLoss(state.enableAutoStopLoss);
           setDynamicSizing(state.dynamicSizing || false);
           setMaxRiskPerTrade(state.maxRiskPerTrade || 1.5);
           setAutoAdjustVolatility(state.autoAdjustVolatility || false);
@@ -982,6 +1003,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
        }
        const data = await res.json();
        setWalletData(data);
+       window.dispatchEvent(new Event('wallet_updated'));
      } catch (err: any) {
        if (!String(err).includes('Failed to fetch')) setWalletError(err.message || 'Error loading wallet');
      } finally {
@@ -1138,7 +1160,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   }, [manualRefreshCount, walletData, orderHistory, symbol, currentPrice]);
 
   const totalTradesCount = orderHistory.length;
-  const averagePnlVal = totalTradesCount > 0 ? orderHistory.reduce((sum, o) => sum + (o.pnl || 0), 0) / totalTradesCount : 0;
+  const averagePnlVal = totalTradesCount > 0 ? (orderHistory || []).reduce((sum, o) => sum + (o.pnl || 0), 0) / totalTradesCount : 0;
   const maxWinVal = totalTradesCount > 0 ? Math.max(...orderHistory.map(o => o.pnl || 0)) : 0;
   const maxLossVal = totalTradesCount > 0 ? Math.min(...orderHistory.map(o => o.pnl || 0)) : 0;
   
@@ -1163,9 +1185,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
 
   // Risk management metrics
   const tradeReturns = [...orderHistory].reverse().map(o => o.pnl / allocation);
-  const meanReturn = tradeReturns.length > 0 ? tradeReturns.reduce((a, b) => a + b, 0) / tradeReturns.length : 0;
+  const meanReturn = tradeReturns.length > 0 ? (tradeReturns || []).reduce((a, b) => a + b, 0) / tradeReturns.length : 0;
   const stdDevReturn = tradeReturns.length > 1 
-    ? Math.sqrt(tradeReturns.reduce((a, b) => a + Math.pow(b - meanReturn, 2), 0) / (tradeReturns.length - 1)) 
+    ? Math.sqrt((tradeReturns || []).reduce((a, b) => a + Math.pow(b - meanReturn, 2), 0) / (tradeReturns.length - 1)) 
     : 0;
   const sharpeRatio = stdDevReturn > 0 ? (meanReturn / stdDevReturn) * Math.sqrt(365) : 0;
 
@@ -1356,7 +1378,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         if (sessionStartTimeRef.current) {
             const sessionOrders = orderHistoryRef.current.filter((o: BotOrder) => o.time >= sessionStartTimeRef.current!);
             const trades = sessionOrders.length;
-            const netPnl = sessionOrders.reduce((sum: number, o: BotOrder) => sum + o.pnl, 0);
+            const netPnl = (sessionOrders || []).reduce((sum: number, o: BotOrder) => sum + o.pnl, 0);
             const wins = sessionOrders.filter((o: BotOrder) => o.pnl >= 0).length;
             const winRate = trades > 0 ? (wins / trades * 100) : 0;
             const durationMs = new Date().getTime() - sessionStartTimeRef.current.getTime();
@@ -1697,6 +1719,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               if (state.lastHeartbeat) setLastHeartbeat(state.lastHeartbeat);
 
               let posChanged = state.activePositions !== prevActivePosRef.current;
+              if (state.lastError && state.lastError !== prevLastErrorRef.current) {
+                 addLog(`Fejl fra trading bot: ${state.lastError}`, 'error');
+                 prevLastErrorRef.current = state.lastError;
+                 // Ensure we show it as toast too if it's new
+                 toast.error(`Bot Fejl: ${state.lastError}`);
+              }
               if (posChanged || state.isActive) {
                  setTimeout(() => {
                     fetchWalletRef.current?.();
@@ -1712,7 +1740,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
 
               if (state.orderHistory && state.orderHistory.length > 0) {
                  setOrderHistory(state.orderHistory.map((o: string | any) => ({...o, time: new Date(o.time)})));
-                 const netPnl = state.orderHistory.reduce((sum: number, o: BotOrder) => sum + o.pnl, 0);
+                 const netPnl = (state.orderHistory || []).reduce((sum: number, o: BotOrder) => sum + o.pnl, 0);
                  setTotalPnl(netPnl);
               }
               setActivePositions(state.activePositions);
@@ -1813,9 +1841,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         return;
     }
 
-    if (newState && isLiveTrading && allocation < 10) {
-        addLog("Minimum order size for Live Trading is 10 USDT.", "error");
-        toast.error("Minimum order size for Live Trading is 10 USDT.");
+    if (newState && allocation < 10) {
+        addLog("Minimum order size is 10 USDT.", "error");
+        toast.error("Minimum order size is 10 USDT.");
         return;
     }
 
@@ -1833,7 +1861,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
          const response = await fetch('/api/bot/start', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation })
+            body: JSON.stringify({ symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, useSmartRoute, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation, enableAutoStopLoss })
          });
          if (response.ok) {
            setIsBotActive(true);
@@ -1858,6 +1886,30 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     }
   };
 
+  const toggleTradingMode = (toLive: boolean) => {
+    if (toLive) {
+      const hasKeys = localStorage.getItem('user_binance_api_key');
+      if (!hasKeys) {
+        setShowProModal(true);
+        return;
+      }
+    }
+    
+    setIsLiveTrading(toLive);
+    
+    logAuditEvent({
+      type: 'config',
+      action: toLive ? 'LIVE_TRADING_ENABLED' : 'PAPER_TRADING_ENABLED',
+      details: toLive 
+        ? `Live Trading tilstand blev aktiveret. Handler vil nu blive eksekveret med rigtige midler på Binance.` 
+        : `Paper Trading tilstand blev aktiveret. Handler udføres i et risikofrit simuleret sandkassemiljø med fiktive midler.`,
+      status: toLive ? 'warning' : 'success',
+      user: googleUser?.email || 'Bruger'
+    });
+    
+    toast.success(toLive ? 'Live Trading tilstand aktiveret!' : 'Paper Trading (simuleret) aktiveret!');
+  };
+
   const executeTrade = async (side: 'BUY' | 'SELL', quantity: number = allocation, orderType: string = 'MARKET') => {
     setPendingTrade({ side, quantity, orderType });
     setShowConfirmation(true);
@@ -1867,7 +1919,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     if (!pendingTrade) return;
     const { side, quantity, orderType } = pendingTrade;
     if (isLiveTrading && quantity < 10) {
-        addLog("Minimum order size for Live Trading is 10 USDT.", "error");
+        addLog("Minimum order size is 10 USDT.", "error");
         setShowConfirmation(false);
         return;
     }
@@ -1882,11 +1934,26 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         const response = await fetch('/api/trade/execute', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ symbol, side, allocation: quantity, orderType, isLiveTrading })
+            body: JSON.stringify({ symbol, side, allocation: quantity, orderType, isLiveTrading, useSmartRoute })
         });
         const data = await response.json();
         if (response.ok) {
             addLog(`${side} order executed for ${symbol} successfully. ${data.isPaper ? '(Paper Trading)' : '(Real Trading)'}`, 'info');
+            
+            logAuditEvent({
+              type: 'trade',
+              action: `MANUAL_TRADE_${side}`,
+              details: `Manuel ${side}-ordre eksekveret på ${symbol}. Type: ${orderType}, Volumen: ${quantity} USDT. Rute: ${data.smartRoute ? 'SmartRoute Split' : 'Direkte API'}. ${data.isPaper ? '(Paper Trading)' : '(Binance Live)'}.`,
+              status: 'success',
+              user: googleUser?.email || 'Manuel Bruger'
+            });
+            if (data.smartRoute) {
+                const splitsStr = data.smartRoute.splits.map((s: any) => `${s.pool}: ${s.percentage}% ($${s.allocation})`).join(', ');
+                addLog(`Smart Route enabled: order split across multiple pools to reduce market impact. Splits: ${splitsStr}`, 'info');
+                toast.success(`Smart Route aktiveret!`, {
+                    description: `Minimeret glidning med ${data.smartRoute.marketImpactMitigation}. Splits: ${splitsStr}`
+                });
+            }
             if (side === 'SELL') {
                 if (data.isPaper) {
                     toast.success(`${side} order executed via Paper Trading`);
@@ -1925,13 +1992,51 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
             }
         } else {
             addLog(`Trade failed: ${data.error}`, 'error');
+            logAuditEvent({
+              type: 'error',
+              action: `MANUAL_TRADE_FAILED`,
+              details: `Mislykket ${side}-ordre på ${symbol}. Fejlmeddelelse: ${data.error || 'Ukendt API fejl'}.`,
+              status: 'failure',
+              user: googleUser?.email || 'Manuel Bruger'
+            });
         }
     } catch (e: any) {
         addLog(`Trade error: ${e.message}`, 'error');
+        logAuditEvent({
+          type: 'error',
+          action: `MANUAL_TRADE_EXCEPTION`,
+          details: `Kritisk fejl under udførelse af ${side}-ordre på ${symbol}: ${e.message}`,
+          status: 'failure',
+          user: googleUser?.email || 'Manuel Bruger'
+        });
     }
   };
 
+  
+  const handleLoadPreset = (preset: TradingPreset) => {
+    if (preset.allocation !== undefined) setAllocation(preset.allocation);
+    if (preset.takeProfit !== undefined) setTakeProfit(preset.takeProfit);
+    if (preset.stopLoss !== undefined) setStopLoss(preset.stopLoss);
+    if (preset.stopLossType !== undefined) setStopLossType(preset.stopLossType);
+    if (preset.strategy !== undefined) setStrategy(preset.strategy);
+    if (preset.useTrailingStop !== undefined) setUseTrailingStop(preset.useTrailingStop);
+    if (preset.dynamicSizing !== undefined) setDynamicSizing(preset.dynamicSizing);
+    if (preset.maxRiskPerTrade !== undefined) setMaxRiskPerTrade(preset.maxRiskPerTrade);
+    if (preset.diversifySectors !== undefined) setDiversifySectors(preset.diversifySectors);
+    if (preset.autoAdjustVolatility !== undefined) setAutoAdjustVolatility(preset.autoAdjustVolatility);
+    if (preset.useNewsSentiment !== undefined) setUseNewsSentiment(preset.useNewsSentiment);
+    if (preset.circuitBreakerLimit !== undefined) setCircuitBreakerLimit(preset.circuitBreakerLimit);
+    if (preset.enableDCA !== undefined) setEnableDCA(preset.enableDCA);
+    if (preset.dcaIntervalHours !== undefined) setDcaIntervalHours(preset.dcaIntervalHours);
+    if (preset.dcaAllocation !== undefined) setDcaAllocation(preset.dcaAllocation);
+  };
+
   const handleDeploy = async () => {
+    if (allocation < 10) {
+        addLog("Minimum order size is 10 USDT.", "error");
+        toast.error("Minimum order size is 10 USDT.");
+        return;
+    }
     addLog(`AI Execution parameters updated for ${symbol}. Strategy: ${strategy}`, 'info');
     
     try {
@@ -2112,7 +2217,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
       worstTrade = Math.min(...orderHistory.map(t => t.pnl || 0));
     }
     
-    const feesPaid = orderHistory.reduce((sum, t) => sum + (t.fee || 0), 0);
+    const feesPaid = (orderHistory || []).reduce((sum, t) => sum + (t.fee || 0), 0);
     
     const statsObj = {
       winRate,
@@ -2393,14 +2498,14 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 {historicalPrices.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <RechartsLineChart data={historicalPrices}>
-                            <XAxis dataKey="time" stroke="#4B5563" fontSize={10} tickMargin={10} minTickGap={30} />
-                            <YAxis domain={['auto', 'auto']} stroke="#4B5563" fontSize={10} tickFormatter={(val) => `${val}`} width={60} />
+                            <XAxis dataKey="time" stroke="var(--color-gray-600)" fontSize={10} tickMargin={10} minTickGap={30} />
+                            <YAxis domain={['auto', 'auto']} stroke="var(--color-gray-600)" fontSize={10} tickFormatter={(val) => `${val}`} width={60} />
                             <Tooltip 
-                                contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '0.5rem', fontSize: '12px' }}
+                                contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', borderRadius: '0.5rem', fontSize: '12px' }}
                                 itemStyle={{ color: '#10b981' }}
-                                labelStyle={{ color: '#9CA3AF' }}
+                                labelStyle={{ color: 'var(--color-gray-400)' }}
                             />
-                            <Line type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#10b981', stroke: '#030712', strokeWidth: 2 }} />
+                            <Line type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#10b981', stroke: 'var(--color-gray-950)', strokeWidth: 2 }} />
                         </RechartsLineChart>
                     </ResponsiveContainer>
                 ) : (
@@ -2510,13 +2615,17 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                    <Zap className={`size-4 ${aiStrategyEnabled ? 'text-amber-500' : 'text-gray-500'}`} />
                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Automated Strategy (Gemini AI)</span>
                 </div>
-                <label className="flex items-center gap-3 cursor-pointer group bg-gray-900/50 p-1.5 px-3 rounded-full border border-gray-800">
+                <div 
+                   onClick={() => setAiStrategyEnabled(!aiStrategyEnabled)}
+                   className="flex items-center gap-3 cursor-pointer group bg-gray-900/50 p-1.5 px-3 rounded-full border border-gray-800"
+                   title={aiStrategyEnabled ? "Deaktiver AI Strategi" : "Aktiver AI Strategi"}
+                >
                    <span className={`text-[10px] font-bold uppercase tracking-tight transition-colors ${!aiStrategyEnabled ? 'text-gray-400' : 'text-gray-600'}`}>OFF</span>
-                   <div className="relative w-8 h-4 bg-gray-800 rounded-full transition-colors" onClick={(e) => { e.preventDefault(); setAiStrategyEnabled(!aiStrategyEnabled); }}>
+                   <div className="relative w-8 h-4 bg-gray-800 rounded-full transition-colors">
                       <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-300 ${aiStrategyEnabled ? 'translate-x-4 bg-amber-500' : 'translate-x-0 bg-gray-500'}`}></div>
                    </div>
                    <span className={`text-[10px] font-bold uppercase tracking-tight transition-colors ${aiStrategyEnabled ? 'text-amber-400' : 'text-gray-600'}`}>ON</span>
-                </label>
+                </div>
              </div>
              
              {aiStrategyEnabled && (
@@ -2540,19 +2649,23 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
              )}
           </div>
 
-          <div className="mb-8 p-4 bg-gray-950/40 rounded-3xl border border-gray-800/50">
+          <div id="trading-execution-card" className="mb-8 p-4 bg-gray-950/40 rounded-3xl border border-gray-800/50">
              <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2">
                    <ShieldCheck className={`size-4 ${!isLiveTrading ? 'text-emerald-500' : 'text-rose-500'}`} />
                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trade Execution</span>
                 </div>
-                <label className="flex items-center gap-3 cursor-pointer group bg-gray-900/50 p-1.5 px-3 rounded-full border border-gray-800">
+                <div 
+                   onClick={() => toggleTradingMode(!isLiveTrading)}
+                   className="flex items-center gap-3 cursor-pointer group bg-gray-900/50 p-1.5 px-3 rounded-full border border-gray-800"
+                   title={isLiveTrading ? "Skift til Papirhandel" : "Skift til Live Trading"}
+                >
                    <span className={`text-[10px] font-bold uppercase tracking-tight transition-colors ${!isLiveTrading ? 'text-emerald-400' : 'text-gray-600 group-hover:text-gray-400'}`}>Paper Trading</span>
-                   <div className="relative w-8 h-4 bg-gray-800 rounded-full transition-colors" onClick={(e) => { e.preventDefault(); setIsLiveTrading(!isLiveTrading); }}>
+                   <div className="relative w-8 h-4 bg-gray-800 rounded-full transition-colors">
                       <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-300 ${isLiveTrading ? 'translate-x-4 bg-rose-500' : 'translate-x-0 bg-emerald-500'}`}></div>
                    </div>
                    <span className={`text-[10px] font-bold uppercase tracking-tight transition-colors ${isLiveTrading ? 'text-rose-400' : 'text-gray-600 group-hover:text-gray-400'}`}>Live Mode</span>
-                </label>
+                </div>
              </div>
 
              <div className="flex gap-4">
@@ -2587,7 +2700,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 quantity: pendingTrade?.quantity || 0,
                 orderType: pendingTrade?.orderType || 'MARKET',
                 symbol: symbol,
-                estimatedPrice: parseFloat(currentPrice) || 0
+                estimatedPrice: parseFloat(currentPrice) || 0,
+                useSmartRoute: useSmartRoute,
+                isLiveTrading: isLiveTrading
             }}
           />
 
@@ -2614,31 +2729,55 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
 
           <div className="mb-6 bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_32px_0_rgba(0,0,0,0.5)] p-4 rounded-2xl relative overflow-hidden">
              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3"></div>
-             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Vælg din risikoprofil</label>
+             
+             <div className="flex items-center justify-between mb-3">
+               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Vælg din risikoprofil</label>
+               <TradingPresetsManager 
+                 currentConfig={{
+                   allocation,
+                   takeProfit,
+                   stopLoss,
+                   stopLossType,
+                   strategy,
+                   useTrailingStop,
+                   dynamicSizing,
+                   maxRiskPerTrade,
+                   diversifySectors,
+                   autoAdjustVolatility,
+                   useNewsSentiment,
+                   circuitBreakerLimit,
+                   enableDCA,
+                   dcaIntervalHours,
+                   dcaAllocation
+                 }}
+                 onLoadPreset={handleLoadPreset}
+               />
+             </div>
+
              <select 
                onChange={(e) => {
                  const val = e.target.value;
                  if (val === 'aggressive') {
                    setStrategy('High-Frequency Scalper (HFT)');
-                   setAllocation(2);
+                   setAllocation(20);
                    setTakeProfit(15.0);
                    setStopLoss(8.0);
                    addLog("Indlæste Aggressiv risikoprofil", "info");
                  } else if (val === 'conservative') {
                    setStrategy('Value Mean-Reversion');
-                   setAllocation(1);
+                   setAllocation(10);
                    setTakeProfit(3.0);
                    setStopLoss(1.5);
                    addLog("Indlæste Konservativ risikoprofil", "info");
                  } else if (val === 'balanced') {
                    setStrategy('Momentum Swing Trader');
-                   setAllocation(1.5);
+                   setAllocation(15);
                    setTakeProfit(8.5);
                    setStopLoss(3.2);
                    addLog("Indlæste Balanceret risikoprofil", "info");
                  } else if (val === 'risk_model_5_10') {
                    setStrategy('Risk-Controlled Trend Following');
-                   setAllocation(1.5);
+                   setAllocation(15);
                    setTakeProfit(10.0);
                    setStopLoss(5.0);
                    addLog("Indlæste Aktietrader-bot Risikomodel (10% TP / 5% SL)", "info");
@@ -2783,10 +2922,24 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Avanceret Risikostyring</label>
                 <div className="bg-gray-950/50 border border-gray-800 rounded-xl p-3 space-y-3">
                   <label className="flex items-center justify-between cursor-pointer group">
+                     <span className="text-xs text-gray-400 group-hover:text-white transition-colors" title="Slå automatisk stop-loss beskyttelse til eller fra">Automatisk Stop-Loss</span>
+                     <div className={`relative w-8 h-4 rounded-full transition-colors ${enableAutoStopLoss ? 'bg-amber-500' : 'bg-gray-800'}`}>
+                        <input type="checkbox" className="sr-only" checked={enableAutoStopLoss} onChange={() => setEnableAutoStopLoss(!enableAutoStopLoss)} />
+                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${enableAutoStopLoss ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                     </div>
+                  </label>
+                  <label className="flex items-center justify-between cursor-pointer group">
                      <span className="text-xs text-gray-400 group-hover:text-white transition-colors">Trailing Stop-Loss</span>
                      <div className={`relative w-8 h-4 rounded-full transition-colors ${useTrailingStop ? 'bg-amber-500' : 'bg-gray-800'}`}>
                         <input type="checkbox" className="sr-only" checked={useTrailingStop} onChange={() => setUseTrailingStop(!useTrailingStop)} />
                         <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${useTrailingStop ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                     </div>
+                  </label>
+                  <label className="flex items-center justify-between cursor-pointer group">
+                     <span className="text-xs text-gray-400 group-hover:text-white transition-colors" title="Splitter automatisk store ordrer over flere liquidity pools (Binance, Coinbase, Uniswap) for at minimere glidning/markedspåvirkning.">Smart Route (Liquidity routing)</span>
+                     <div className={`relative w-8 h-4 rounded-full transition-colors ${useSmartRoute ? 'bg-amber-500' : 'bg-gray-800'}`}>
+                        <input type="checkbox" className="sr-only" checked={useSmartRoute} onChange={() => setUseSmartRoute(!useSmartRoute)} />
+                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${useSmartRoute ? 'translate-x-4' : 'translate-x-0'}`}></div>
                      </div>
                   </label>
                   <label className="flex items-center justify-between cursor-pointer group">
@@ -2858,7 +3011,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Købsbeløb (USDT)</span>
                                      <span className="text-xs text-amber-500 font-mono">${dcaAllocation.toFixed(2)}</span>
                                  </div>
-                                 <input type="range" min="0.1" max="100.0" step="0.1" value={dcaAllocation} onChange={(e) => setDcaAllocation(Number(e.target.value))} className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" />
+                                 <input type="range" min="10.0" max="100.0" step="1.0" value={dcaAllocation} onChange={(e) => setDcaAllocation(Number(e.target.value))} className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" />
                              </div>
                          </div>
                      )}
@@ -2885,16 +3038,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 <label className="flex items-center gap-3 cursor-pointer" title={isLiveTrading ? "Skift til Papirhandel" : "Skift til Live Trading"}>
                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{isLiveTrading ? 'Live Trading (REAL FUNDS)' : 'Paper Trading (SIMULERET)'}</span>
                    <div className={`relative w-10 h-6 rounded-full transition-colors ${isLiveTrading ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'}`}>
-                      <input type="checkbox" className="sr-only" checked={isLiveTrading} onChange={() => {
-                        if (!isLiveTrading) {
-                          const hasKeys = localStorage.getItem('user_binance_api_key');
-                          if (!hasKeys) {
-                            setShowProModal(true);
-                            return;
-                          }
-                        }
-                        setIsLiveTrading(!isLiveTrading);
-                      }} />
+                      <input type='checkbox' className='sr-only' checked={isLiveTrading} onChange={() => toggleTradingMode(!isLiveTrading)} />
                       <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${isLiveTrading ? 'translate-x-4' : 'translate-x-0'}`}></div>
                    </div>
                 </label>
@@ -2965,6 +3109,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
           const allTabs = [
             { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, colorClass: 'text-amber-500', cat: 'overblik' },
             { id: 'correlation', label: 'Korrelation', icon: GitCompare, colorClass: 'text-indigo-400', cat: 'analyse' },
+            { id: 'risk', label: 'Risiko-analyse', icon: ShieldAlert, colorClass: 'text-rose-400', cat: 'analyse' },
             { id: 'live', label: 'Live Data', icon: Zap, colorClass: 'text-cyan-500', cat: 'analyse' },
             { id: 'history', label: 'Historik', icon: History, colorClass: 'text-amber-500', cat: 'overblik' },
             { id: 'wallet', label: 'Min Pung', icon: Wallet, colorClass: 'text-purple-500', cat: 'overblik' },
@@ -3058,7 +3203,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 
                 {navStyle === 'sidebar' && (
                   /* SIDEBAR NAVIGATION STYLE */
-                  <div className={`w-48 shrink-0 flex flex-col gap-1 border-r pr-3 py-1 overflow-y-auto scrollbar-none text-left h-full ${
+                  <div id="trading-panel-categories" className={`w-48 shrink-0 flex flex-col gap-1 border-r pr-3 py-1 overflow-y-auto scrollbar-none text-left h-full ${
                     activeTheme === 'alpine' ? 'border-slate-200/80' : activeTheme === 'sage' ? 'border-emerald-950/20' : 'border-white/5'
                   }`}>
                     <div className="flex justify-between items-center mb-3 px-2">
@@ -3205,7 +3350,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                   className="space-y-4 h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-800 absolute inset-0 pb-6 flex flex-col"
                 >
                   {/* Dashboard Welcome Header */}
-                  <div className="bg-gradient-to-r from-amber-500/10 via-cyan-500/5 to-purple-500/10 border border-gray-800/80 rounded-2xl p-5 mb-1 shrink-0 relative overflow-hidden group">
+                  <div id="welcome-header" className="bg-gradient-to-r from-amber-500/10 via-cyan-500/5 to-purple-500/10 border border-gray-800/80 rounded-2xl p-5 mb-1 shrink-0 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20"></div>
                     
@@ -3618,10 +3763,10 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                 <XAxis dataKey="time" hide />
                                 <YAxis domain={['auto', 'auto']} hide />
                                 <Tooltip 
-                                  contentStyle={{ backgroundColor: '#111827', borderColor: '#1f2937', borderRadius: '0.75rem', fontSize: '12px' }}
+                                  contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-800)', borderRadius: '0.75rem', fontSize: '12px' }}
                                   itemStyle={{ color: '#0ea5e9' }}
                                   formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
-                                  labelStyle={{ color: '#9ca3af' }}
+                                  labelStyle={{ color: 'var(--color-gray-400)' }}
                                 />
                                 <Area 
                                   type="monotone" 
@@ -3681,8 +3826,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                         <ResponsiveContainer width="100%" height="100%">
                            <AreaChart data={pnlChartData}>
                               <XAxis dataKey="time" hide />
-                              <YAxis stroke="#4B5563" fontSize={9} />
-                              <Tooltip contentStyle={{ backgroundColor: '#030712', borderColor: '#374151', borderRadius: '0.5rem', fontSize: '10px' }} />
+                              <YAxis stroke="var(--color-gray-600)" fontSize={9} />
+                              <Tooltip contentStyle={{ backgroundColor: 'var(--color-gray-950)', borderColor: 'var(--color-gray-700)', borderRadius: '0.5rem', fontSize: '10px' }} />
                               <Area type="monotone" dataKey="cumPnl" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
                            </AreaChart>
                         </ResponsiveContainer>
@@ -3781,8 +3926,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                              return defaults[asset] || 1.0;
                            };
 
-                           const spotTotal = walletData.spot.reduce((acc: number, b: any) => acc + (parseFloat(b.free) + parseFloat(b.locked || '0')) * getAssetUsdPrice(b.asset), 0);
-                           const earnTotal = walletData.earn.reduce((acc: number, e: any) => acc + parseFloat(e.totalAmount) * getAssetUsdPrice(e.asset), 0);
+                           const spotTotal = (walletData.spot || []).reduce((acc: number, b: any) => acc + (parseFloat(b.free) + parseFloat(b.locked || '0')) * getAssetUsdPrice(b.asset), 0);
+                           const earnTotal = (walletData.earn || []).reduce((acc: number, e: any) => acc + parseFloat(e.totalAmount) * getAssetUsdPrice(e.asset), 0);
                            const grandTotal = spotTotal + earnTotal;
 
                            return (
@@ -4491,6 +4636,18 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                    <CorrelationMatrix />
                 </motion.div>
               )}
+              {panelTab === 'risk' && (
+                <motion.div
+                  key="risk"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-800 absolute inset-0 space-y-6 pb-20 font-sans"
+                >
+                   <RiskMetricsDashboard />
+                </motion.div>
+              )}
               {panelTab === 'rebalance' && (
                 <motion.div 
                   initial={{ opacity: 0, x: -20 }}
@@ -4603,7 +4760,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                  <motion.p 
                     key={orderHistory.length}
                     initial={{ color: '#10b981', scale: 1.05 }}
-                    animate={{ color: '#ffffff', scale: 1 }}
+                    animate={{ color: 'var(--color-white)', scale: 1 }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className="text-3xl font-mono text-white tracking-tight"
                  >
@@ -4618,14 +4775,14 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                             <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" vertical={false} />
                         <XAxis dataKey="time" hide />
                         <YAxis domain={['auto', 'auto']} hide />
                         <Tooltip 
-                          contentStyle={{ backgroundColor: '#030712', borderColor: '#1f2937', borderRadius: '0.5rem', fontSize: '10px', fontFamily: 'monospace' }}
+                          contentStyle={{ backgroundColor: 'var(--color-gray-950)', borderColor: 'var(--color-gray-800)', borderRadius: '0.5rem', fontSize: '10px', fontFamily: 'monospace' }}
                           itemStyle={{ color: '#10b981' }}
                           formatter={(value: number) => [`$${value.toFixed(2)}`, 'Cumulative PnL']}
-                          labelStyle={{ color: '#9ca3af' }}
+                          labelStyle={{ color: 'var(--color-gray-400)' }}
                         />
                         <Area type="monotone" dataKey="cumPnl" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorCumPnl)" isAnimationActive={true} animationDuration={1000} animationEasing="ease-out" />
                       </AreaChart>
@@ -4890,11 +5047,28 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
            </div>
            
            {/* Auto-filled demo API fields */}
-           <div className="mt-4 space-y-3 p-3 bg-gray-950/50 rounded-xl border border-gray-800">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest cursor-pointer">API Nøgler (Krypteret)</p>
-              <div className="font-mono text-xs text-gray-600 bg-gray-900 p-2 rounded truncate border border-gray-800">PUB: ************************</div>
-              <div className="font-mono text-xs text-gray-600 bg-gray-900 p-2 rounded truncate border border-gray-800">SEC: ************************</div>
-           </div>
+            <div className="mt-4 space-y-3 p-3 bg-gray-950/50 rounded-xl border border-gray-800">
+               <p className="text-[10px] text-gray-500 uppercase tracking-widest cursor-pointer">API Nøgler (Krypteret)</p>
+               <div className="font-mono text-xs text-gray-600 bg-gray-900 p-2 rounded truncate border border-gray-800">PUB: ************************</div>
+               <div className="font-mono text-xs text-gray-600 bg-gray-900 p-2 rounded truncate border border-gray-800">SEC: ************************</div>
+            </div>
+
+            {/* Paper Trading Mode toggle */}
+            <div className="mt-4 p-4 bg-gray-950/50 rounded-xl border border-gray-800">
+               <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                     <Shield className={`size-4 ${!isLiveTrading ? "text-emerald-500" : "text-gray-400"}`} />
+                     <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">Papirhandel (Sandbox)</span>
+                  </div>
+                  <div className={`relative w-8 h-4 rounded-full transition-colors cursor-pointer ${!isLiveTrading ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-gray-800"}`}
+                       onClick={() => toggleTradingMode(!isLiveTrading)}>
+                     <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-300 ${!isLiveTrading ? "translate-x-4" : "translate-x-0"}`}></div>
+                  </div>
+               </div>
+               <p className="text-[10px] text-gray-500 leading-relaxed">
+                  Skifter alle handler til et risikofrit simuleret sandkassemiljø. Real-time priser fra Binance bruges stadig til beregninger af simulated fyldninger, indgangspriser og porteføljeudvikling.
+               </p>
+            </div>
         </motion.div>
       </div>
 
@@ -5119,7 +5293,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         const averageTradeProfit = totalTradesCount > 0 ? totalPnl / totalTradesCount : 0;
         const maxBestTrade = orderHistory.length > 0 ? Math.max(...orderHistory.map(t => t.pnl || 0)) : 0;
         const maxWorstTrade = orderHistory.length > 0 ? Math.min(...orderHistory.map(t => t.pnl || 0)) : 0;
-        const totalFeesCount = orderHistory.reduce((sum, t) => sum + (t.fee || 0), 0);
+        const totalFeesCount = (orderHistory || []).reduce((sum, t) => sum + (t.fee || 0), 0);
 
         // Chart data for Win/Loss donut
         const donutChartData = [
@@ -5352,7 +5526,7 @@ ${activeSummaryText}
                                   ))}
                                 </Pie>
                                 <Tooltip 
-                                  contentStyle={{ backgroundColor: '#090d16', border: '1px solid #1f2937', borderRadius: '8px' }}
+                                  contentStyle={{ backgroundColor: 'var(--color-gray-950)', border: '1px solid var(--color-gray-800)', borderRadius: '8px' }}
                                   itemStyle={{ color: '#fff', fontSize: '11px', fontFamily: 'monospace' }}
                                 />
                               </PieChart>

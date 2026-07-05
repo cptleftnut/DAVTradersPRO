@@ -81,40 +81,40 @@ export function SentimentHistoryChart({ history }: SentimentHistoryChartProps) {
               margin={{ top: 5, right: 20, left: -20, bottom: 5 }}
               className="text-xs font-mono"
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-700)" vertical={false} />
               <XAxis 
                 dataKey="name" 
-                stroke="#6B7280" 
+                stroke="var(--color-gray-500)" 
                 axisLine={false} 
                 tickLine={false}
-                tick={{ fill: '#6B7280', fontSize: 10 }}
+                tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }}
               />
               <YAxis 
                 yAxisId="left"
-                stroke="#6B7280" 
+                stroke="var(--color-gray-500)" 
                 axisLine={false} 
                 tickLine={false}
-                tick={{ fill: '#6B7280', fontSize: 10 }}
+                tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }}
                 domain={[0, 100]}
               />
               <YAxis 
                 yAxisId="right"
                 orientation="right"
-                stroke="#6B7280" 
+                stroke="var(--color-gray-500)" 
                 axisLine={false} 
                 tickLine={false}
-                tick={{ fill: '#6B7280', fontSize: 10 }}
+                tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }}
                 domain={[0, 100]}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#111827', 
-                  border: '1px solid #374151',
+                  backgroundColor: 'var(--color-gray-900)', 
+                  border: '1px solid var(--color-gray-700)',
                   borderRadius: '0.5rem',
-                  color: '#F3F4F6',
+                  color: 'var(--color-gray-100)',
                   fontFamily: 'inherit'
                 }}
-                labelStyle={{ color: '#9CA3AF', marginBottom: '0.25rem' }}
+                labelStyle={{ color: 'var(--color-gray-400)', marginBottom: '0.25rem' }}
               />
               <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
               <Line 
@@ -124,7 +124,7 @@ export function SentimentHistoryChart({ history }: SentimentHistoryChartProps) {
                 dataKey="sentiment" 
                 stroke="#F59E0B" 
                 strokeWidth={2} 
-                dot={{ r: 4, fill: '#111827', stroke: '#F59E0B', strokeWidth: 2 }}
+                dot={{ r: 4, fill: 'var(--color-gray-900)', stroke: '#F59E0B', strokeWidth: 2 }}
                 activeDot={{ r: 6, fill: '#F59E0B', stroke: '#000', strokeWidth: 2 }}
               />
               <Line 
@@ -134,7 +134,7 @@ export function SentimentHistoryChart({ history }: SentimentHistoryChartProps) {
                 dataKey="confidence" 
                 stroke="#10B981" 
                 strokeWidth={2} 
-                dot={{ r: 4, fill: '#111827', stroke: '#10B981', strokeWidth: 2 }}
+                dot={{ r: 4, fill: 'var(--color-gray-900)', stroke: '#10B981', strokeWidth: 2 }}
                 activeDot={{ r: 6, fill: '#10B981', stroke: '#000', strokeWidth: 2 }}
               />
             </LineChart>

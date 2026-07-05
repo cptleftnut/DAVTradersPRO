@@ -19,9 +19,26 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
 
   const isFreeUser = userEmail === 'djminirocker@gmail.com';
 
-  const handleActivateClick = () => {
+  const handleActivateClick = async () => {
     if (isFreeUser) {
+      const mockKey = 'demo_key_djminirocker_free';
+      const mockSecret = 'demo_secret_djminirocker_free';
+      localStorage.setItem('user_binance_api_key', mockKey);
+      localStorage.setItem('user_binance_api_secret', mockSecret);
+      
+      if (userUid) {
+         try {
+            await setDoc(doc(db, "userSettings", userUid), {
+               binanceApiKey: mockKey,
+               binanceApiSecret: mockSecret
+            }, { merge: true });
+         } catch (e) {
+            console.error("Failed to save credentials to Firestore", e);
+         }
+      }
+      
       toast.success('AI Pro aktiveret gratis!');
+      window.dispatchEvent(new Event('api_keys_updated'));
       onClose();
       return;
     }

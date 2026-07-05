@@ -53,7 +53,7 @@ export function AgentRadarChart({ data, selectedTicker }: { data: AgentPerforman
               </div>
               <span 
                 className="font-mono font-medium" 
-                style={{ color: isHandlingSelectedTicker ? '#f3f4f6' : '#9ca3af' }}
+                style={{ color: isHandlingSelectedTicker ? 'var(--color-gray-100)' : 'var(--color-gray-400)' }}
               >
                 {entry.value}
                 {isHandlingSelectedTicker && <span className="ml-1 text-[10px] text-emerald-400 font-bold">(Live)</span>}
@@ -111,11 +111,11 @@ export function AgentRadarChart({ data, selectedTicker }: { data: AgentPerforman
       <div className="w-full h-80 mb-2">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
-            <PolarGrid stroke="#374151" />
-            <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+            <PolarGrid stroke="var(--color-gray-700)" />
+            <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--color-gray-400)', fontSize: 12 }} />
             <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
             <Tooltip 
-               contentStyle={{ backgroundColor: '#030712', borderColor: '#374151', color: '#f3f4f6', borderRadius: '12px', fontSize: '14px' }} 
+               contentStyle={{ backgroundColor: 'var(--color-gray-950)', borderColor: 'var(--color-gray-700)', color: 'var(--color-gray-100)', borderRadius: '12px', fontSize: '14px' }} 
                itemStyle={{ color: '#22d3ee' }}
                formatter={(value: number, name: string) => [value, name]}
             />

@@ -41,8 +41,32 @@ export const PortfolioSummary = React.memo( () => {
   }, []);
 
   useEffect(() => {
-    const fetchWallet = async () => {
-      setWalletLoading(true);
+      const handleWalletUpdated = () => {
+        // Re-fetch wallet data
+        const fetchWallet = async () => {
+          setWalletLoading(true);
+          try {
+            const response = await fetch('/api/wallet');
+            if (response.ok) {
+               const data = await response.json();
+               setWalletData(data);
+            }
+          } catch (e: any) {
+            console.error("Failed to fetch wallet", e);
+          } finally {
+            setWalletLoading(false);
+          }
+        };
+        fetchWallet();
+      };
+      
+      window.addEventListener('wallet_updated', handleWalletUpdated);
+      return () => window.removeEventListener('wallet_updated', handleWalletUpdated);
+    }, []);
+
+    useEffect(() => {
+        const fetchWallet = async () => {
+          setWalletLoading(true);
       try {
         const response = await fetch('/api/wallet');
         if (response.ok) {
@@ -255,7 +279,7 @@ export const PortfolioSummary = React.memo( () => {
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={pnlTrend}>
                             <XAxis dataKey="date" hide />
-                            <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#f3f4f6' }} />
+                            <Tooltip contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', color: 'var(--color-gray-100)' }} />
                             <Line type="monotone" dataKey="pnl" stroke="#10b981" strokeWidth={2} dot={false} />
                         </LineChart>
                     </ResponsiveContainer>

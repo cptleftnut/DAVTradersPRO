@@ -393,25 +393,25 @@ export function DailyPnlChart({ journalEntries = [], botOrderHistory = [] }: Dai
               }
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.25} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" opacity={0.25} />
             <XAxis
               dataKey="label"
-              stroke="#4b5563"
+              stroke="var(--color-gray-600)"
               fontSize={10}
               tickLine={false}
               axisLine={false}
               dy={6}
             />
             <YAxis
-              stroke="#4b5563"
+              stroke="var(--color-gray-600)"
               fontSize={10}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `$${v}`}
               dx={-6}
             />
-            <Tooltip content={<CustomChartTooltip />} cursor={<CustomCursor stroke="#374151" />} />
-            <ReferenceLine y={0} stroke="#4b5563" strokeWidth={1} strokeDasharray="3 3" opacity={0.5} />
+            <Tooltip content={<CustomChartTooltip />} cursor={<CustomCursor stroke="var(--color-gray-700)" />} />
+            <ReferenceLine y={0} stroke="var(--color-gray-600)" strokeWidth={1} strokeDasharray="3 3" opacity={0.5} />
             <Line
               type="monotone"
               dataKey="pnl"

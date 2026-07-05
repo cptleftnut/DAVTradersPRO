@@ -67,17 +67,17 @@ export function BenchmarkChart({ activeStrategy, data = [] }: { activeStrategy: 
       <div className="h-64 sm:h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" vertical={false} />
             <XAxis 
                 dataKey="time" 
-                stroke="#6b7280" 
+                stroke="var(--color-gray-500)" 
                 fontSize={12} 
                 tickLine={false} 
                 axisLine={false}
                 dy={10}
             />
             <YAxis 
-                stroke="#6b7280" 
+                stroke="var(--color-gray-500)" 
                 fontSize={12} 
                 tickLine={false} 
                 axisLine={false}
@@ -86,7 +86,7 @@ export function BenchmarkChart({ activeStrategy, data = [] }: { activeStrategy: 
             />
             <Tooltip 
                 content={<CustomTooltip />}
-                cursor={<CustomCursor stroke="#374151" />}
+                cursor={<CustomCursor stroke="var(--color-gray-700)" />}
             />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
             <Line 
@@ -95,7 +95,7 @@ export function BenchmarkChart({ activeStrategy, data = [] }: { activeStrategy: 
                 dataKey="strategy" 
                 stroke="#34d399" 
                 strokeWidth={3} 
-                dot={{ r: 4, fill: '#030712', strokeWidth: 2 }} 
+                dot={{ r: 4, fill: 'var(--color-gray-950)', strokeWidth: 2 }} 
                 activeDot={{ r: 6, strokeWidth: 0 }}
             />
             <Line 

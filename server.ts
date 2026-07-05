@@ -13,7 +13,7 @@ const yahooFinance = new YFClass();
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, setLogLevel } from 'firebase/firestore';
 import * as tf from '@tensorflow/tfjs';
-import firebaseConfig from './firebase-applet-config.json';
+import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 
 setLogLevel('silent');
 
@@ -113,6 +113,7 @@ interface BotState {
   enableDCA?: boolean;
   dcaIntervalHours?: number;
   dcaAllocation?: number;
+  enableAutoStopLoss?: boolean;
   dailyStartPortfolioValue?: number;
   circuitBreakerTripped?: boolean;
   circuitBreakerDate?: string;
@@ -120,6 +121,8 @@ interface BotState {
   activePositionsList: any[];
   orderHistory: BotOrder[];
   tradeCounter: number;
+  lastError?: string;
+  lastErrorTime?: number;
   lastTradeTime?: number;
   wsStatus?: 'connected' | 'disconnected' | 'connecting' | 'error';
   reconnectCount?: number;
@@ -128,6 +131,7 @@ interface BotState {
   userApiSecret?: string;
   unpaidFee?: number;
   lastFeeCalculationDate?: string;
+  maintenanceMode?: boolean;
 }
 
 let botState: BotState = {
@@ -142,13 +146,15 @@ let botState: BotState = {
   dynamicSizing: false,
   maxRiskPerTrade: 1.5,
   diversifySectors: false,
+  enableAutoStopLoss: true,
   activePositions: 0,
   activePositionsList: [],
   orderHistory: [],
   tradeCounter: 0,
   wsStatus: 'disconnected',
   reconnectCount: 0,
-  lastHeartbeat: 0
+  lastHeartbeat: 0,
+  maintenanceMode: false
 };
 
 // Firestore persistence helpers
@@ -174,15 +180,9 @@ async function calculateDailyFee() {
     });
     
     if (totalRealizedGains > 0) {
-      const fee = totalRealizedGains * 0.01;
-      botState.unpaidFee = (botState.unpaidFee || 0) + fee;
+      const fee = 0;
+      botState.unpaidFee = 0;
       console.log(`[Fee] Calculated ${fee} fee for ${totalRealizedGains} gains on ${botState.lastFeeCalculationDate}`);
-      if (botState.isActive) {
-        console.log('[Fee] Stopping bot due to unpaid fee');
-        botState.isActive = false;
-        // stopBot() might not be fully hoisted if it uses variables, but let's just set isActive=false to pause it and let the loop naturally stop or we call stopBot()
-        try { stopBot(); } catch(e) {}
-      }
     }
     
     botState.lastFeeCalculationDate = today;
@@ -213,7 +213,13 @@ async function loadBotState() {
           botState.maxRiskPerTrade,
           botState.diversifySectors,
           botState.stopLossType,
-          botState.autoAdjustVolatility
+          botState.autoAdjustVolatility,
+          botState.useNewsSentiment,
+          botState.circuitBreakerLimit,
+          botState.enableDCA,
+          botState.dcaIntervalHours,
+          botState.dcaAllocation,
+          botState.enableAutoStopLoss
         );
       }
     } else {
@@ -454,6 +460,86 @@ async function stopBot() {
   }
 }
 
+async function closeAllActivePositionsGracefully() {
+  const now = Date.now();
+  const closedOrders: BotOrder[] = [];
+  
+  // Clone active positions list so we can clear the original safely
+  const positionsToClose = [...botState.activePositionsList];
+  
+  for (const pos of positionsToClose) {
+    const symbol = pos.symbol || botState.symbol || 'BTCUSDT';
+    let currentPrice = pos.price; // fallback
+    
+    try {
+      const apiKey = botState.userApiKey || process.env.BINANCE_API_KEY;
+      const apiSecret = botState.userApiSecret || process.env.BINANCE_API_SECRET;
+      if (apiKey && apiSecret) {
+          const client = new Spot(apiKey, apiSecret);
+          const priceRes = await client.tickerPrice(symbol);
+          currentPrice = parseFloat(priceRes.data.price);
+      }
+    } catch (err) {
+      console.warn(`[Maintenance] Kunne ikke hente live-pris for ${symbol} under lukning:`, err);
+    }
+    
+    const pnlPct = pos.price ? ((currentPrice - pos.price) / pos.price) * 100 : 0;
+    
+    const closedOrder: BotOrder = {
+      id: Math.random().toString(36).substring(7),
+      symbol: symbol,
+      type: 'SELL',
+      pnl: pnlPct,
+      time: new Date(now),
+      duration: '0s',
+      price: currentPrice,
+      quantity: pos.actualAlloc ? (pos.actualAlloc / currentPrice) : 0.01,
+      entryPrice: pos.price,
+      exitPrice: currentPrice,
+      profitPercent: pnlPct
+    };
+    
+    closedOrders.push(closedOrder);
+    botState.orderHistory.unshift(closedOrder);
+  }
+  
+  botState.activePositionsList = [];
+  botState.activePositions = 0;
+  await saveBotState();
+  return closedOrders;
+}
+
+app.post('/api/bot/maintenance', async (req, res) => {
+   try {
+      const { maintenanceEnabled } = req.body;
+      
+      if (maintenanceEnabled) {
+         console.log("[Maintenance] Aktiverer vedligeholdelsestilstand...");
+         botState.maintenanceMode = true;
+         
+         // 1. Pause active trading bots gracefully
+         await stopBot();
+         
+         // 2. Gracefully close all open orders / positions
+         const closedOrders = await closeAllActivePositionsGracefully();
+         
+         await saveBotState();
+         res.json({ success: true, maintenanceMode: true, botState, closedOrders });
+      } else {
+         console.log("[Maintenance] Deaktiverer vedligeholdelsestilstand...");
+         botState.maintenanceMode = false;
+         await saveBotState();
+         res.json({ success: true, maintenanceMode: false, botState });
+      }
+   } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Kunne ikke ændre vedligeholdelsestilstand' });
+   }
+});
+
+app.get('/api/bot/maintenance', (req, res) => {
+   res.json({ maintenanceMode: botState.maintenanceMode || false, botState });
+});
+
 async function executeTradeInternal(symbol: string, side: string, allocation: number, customApiKey?: string, customApiSecret?: string) {
     const apiKey = customApiKey || botState.userApiKey || process.env.BINANCE_API_KEY;
     const apiSecret = customApiSecret || botState.userApiSecret || process.env.BINANCE_API_SECRET;
@@ -462,12 +548,17 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
       throw new Error('BINANCE_API_KEY or BINANCE_API_SECRET is not set');
     }
 
+
     const client = new Spot(apiKey, apiSecret);
+    botState.lastError = undefined;
     const priceRes = await client.tickerPrice(symbol);
     const currentPrice = parseFloat(priceRes.data.price);
     
     if (allocation < 10) {
-        throw new Error("Minimum order size on Binance is 10 USDT");
+        const errMsg = "Minimum order size on Binance is 10 USDT. Please increase your allocation.";
+        botState.lastError = errMsg;
+        botState.lastErrorTime = Date.now();
+        throw new Error(errMsg);
     }
     
     // const quantity = (allocation / currentPrice).toFixed(5);
@@ -481,7 +572,10 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
       if (err.response) {
           console.error("DEBUG: Binance response data:", err.response.data);
       }
-      throw new Error(`Binance Order Error: ${err.message || (err.response?.data ? JSON.stringify(err.response.data) : null) || err}`);
+      const errMsg = `Binance Order Error: ${err.message || (err.response?.data ? JSON.stringify(err.response.data) : null) || err}`;
+      botState.lastError = errMsg;
+      botState.lastErrorTime = Date.now();
+      throw new Error(errMsg);
     }
     if (orderData.fills && orderData.fills.length > 0) {
       return parseFloat(orderData.fills[0].price);
@@ -489,7 +583,7 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
     return currentPrice;
 }
 
-async function startBot(symbol: string, allocation: number, isLiveTrading: boolean, takeProfit: number, stopLoss: number, strategy: string, useTrailingStop?: boolean, dynamicSizing?: boolean, maxRiskPerTrade?: number, diversifySectors?: boolean, stopLossType?: 'percentage' | 'fixed', autoAdjustVolatility?: boolean, useNewsSentiment?: boolean, circuitBreakerLimit?: number, enableDCA?: boolean, dcaIntervalHours?: number, dcaAllocation?: number) {
+async function startBot(symbol: string, allocation: number, isLiveTrading: boolean, takeProfit: number, stopLoss: number, strategy: string, useTrailingStop?: boolean, dynamicSizing?: boolean, maxRiskPerTrade?: number, diversifySectors?: boolean, stopLossType?: 'percentage' | 'fixed', autoAdjustVolatility?: boolean, useNewsSentiment?: boolean, circuitBreakerLimit?: number, enableDCA?: boolean, dcaIntervalHours?: number, dcaAllocation?: number, enableAutoStopLoss?: boolean) {
   await stopBot();
   botState.symbol = symbol;
   botState.allocation = allocation;
@@ -504,6 +598,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
   botState.diversifySectors = diversifySectors || false;
   botState.autoAdjustVolatility = autoAdjustVolatility || false;
   botState.useNewsSentiment = useNewsSentiment || false;
+  botState.enableAutoStopLoss = enableAutoStopLoss !== undefined ? enableAutoStopLoss : true;
   if (circuitBreakerLimit !== undefined) botState.circuitBreakerLimit = circuitBreakerLimit;
   if (enableDCA !== undefined) botState.enableDCA = enableDCA;
   if (dcaIntervalHours !== undefined) botState.dcaIntervalHours = dcaIntervalHours;
@@ -579,7 +674,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
           const now = Date.now();
           let tradeAllocation = botState.allocation;
           if (botState.dynamicSizing && botState.maxRiskPerTrade) {
-              const balance = 10;
+              const balance = botState.dailyStartPortfolioValue || 1000;
               const riskAmount = balance * (botState.maxRiskPerTrade / 100);
               const stopLossPct = botState.stopLossType === 'fixed' ? (botState.stopLoss / currentP) * 100 : botState.stopLoss;
               if (stopLossPct > 0) {
@@ -602,6 +697,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
               }
           }
           
+          if (tradeAllocation < 10) tradeAllocation = 10;
           // Entry
           if (botState.activePositionsList.length < 5) {
              const cooldown = botState.isLiveTrading ? 15000 : 8000;
@@ -653,7 +749,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
              entryExtended.currentPrice = entry.price * (1 + simProfitPercent / 100);
              
              const hitSimTakeProfit = simProfitPercent >= botState.takeProfit;
-             const hitSimStopLoss = simProfitPercent <= -currentTargetDropPct;
+             const hitSimStopLoss = (botState.enableAutoStopLoss !== false) && (simProfitPercent <= -currentTargetDropPct);
              const hitTimeout = elapsed >= entryExtended.durationMs;
              
              if (hitSimTakeProfit || hitSimStopLoss || hitTimeout) {
@@ -782,7 +878,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
         const now = Date.now();
         let tradeAllocation = botState.allocation;
         if (botState.dynamicSizing && botState.maxRiskPerTrade) {
-            const balance = 10;
+            const balance = botState.dailyStartPortfolioValue || 1000;
             const riskAmount = balance * (botState.maxRiskPerTrade / 100);
             const stopLossPct = botState.stopLossType === 'fixed' ? (botState.stopLoss / currentP) * 100 : botState.stopLoss;
             if (stopLossPct > 0) {
@@ -806,6 +902,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
             }
         }
         
+        if (tradeAllocation < 10) tradeAllocation = 10;
         // Strategy-guided Trading logic - Entry
         if (botState.activePositionsList.length < 5) {
            const cooldown = botState.isLiveTrading ? 15000 : 8000;
@@ -821,8 +918,17 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                       botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: entryPrice || currentP, time: now, status: 'LIVE', maxProfitPct: 0 });
                       botState.activePositions = botState.activePositionsList.length;
                       saveBotState();
-                   } catch (e) {
+                   } catch (e: any) {
                       console.warn("Live entry failed", e);
+                      botState.orderHistory.unshift({
+                         id: `ERR-${Date.now().toString().slice(-6)}`,
+                         symbol: botState.symbol.replace(/USDT|USDC/g, ''),
+                         type: 'FAILED BUY',
+                         pnl: 0,
+                         time: new Date(),
+                         duration: e.message || 'Error'
+                      });
+                      botState.isActive = false; // Stop the bot so the user notices
                    }
                 } else {
                    let targetQuote = 'USDT';
@@ -876,8 +982,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
               }
               
               const hitSimTakeProfit = simProfitPercent >= botState.takeProfit;
-              const isSimTrailingStopTriggered = botState.useTrailingStop && (simProfitPercent < (entryExtended.maxProfitPct || 0) - currentTargetDropPct);
-              const isSimStandardStopTriggered = !botState.useTrailingStop && (simProfitPercent <= -currentTargetDropPct);
+              const isSimTrailingStopTriggered = (botState.enableAutoStopLoss !== false) && botState.useTrailingStop && (simProfitPercent < (entryExtended.maxProfitPct || 0) - currentTargetDropPct);
+              const isSimStandardStopTriggered = (botState.enableAutoStopLoss !== false) && !botState.useTrailingStop && (simProfitPercent <= -currentTargetDropPct);
               const isHardStopFloorTriggered = simProfitPercent <= -15.0; // Hard 15% safety limit
               const hitSimStopLoss = isSimStandardStopTriggered || isSimTrailingStopTriggered || isHardStopFloorTriggered;
               const hitTimeout = elapsed >= entryExtended.durationMs;
@@ -1025,7 +1131,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
          const currentP = recentPriceWindow[recentPriceWindow.length - 1] || 0;
          if (currentP <= 0) return;
          
-         const alloc = botState.dcaAllocation!;
+         let alloc = botState.dcaAllocation!;
+         if (alloc < 10) alloc = 10;
          const now = Date.now();
          
          try {
@@ -1063,18 +1170,22 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
 
 app.post('/api/bot/start', async (req, res) => {
    try {
+      if (botState.maintenanceMode) {
+         return res.status(403).json({ error: "Systemet er i vedligeholdelsestilstand. Trading bots kan ikke startes før vedligeholdelse afsluttes.", maintenanceActive: true });
+      }
+
       await calculateDailyFee();
       if (botState.unpaidFee && botState.unpaidFee > 0) {
          return res.status(403).json({ error: `You have an outstanding profit-share fee of ${botState.unpaidFee.toFixed(2)}. Please pay to unlock the AI Trader.`, feeRequired: true, amount: botState.unpaidFee, botState });
       }
 
-      const { symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation } = req.body;
+      const { symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation, enableAutoStopLoss } = req.body;
       
       const creds = await getBinanceCredentials(req, req.headers);
       if (creds.apiKey) botState.userApiKey = creds.apiKey;
       if (creds.apiSecret) botState.userApiSecret = creds.apiSecret;
 
-      await startBot(symbol, allocation, isLiveTrading, takeProfit, stopLoss, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, stopLossType, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation);
+      await startBot(symbol, allocation, isLiveTrading, takeProfit, stopLoss, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, stopLossType, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation, enableAutoStopLoss);
       res.json({ success: true, botState });
    } catch (error: any) {
     if (error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('too_many_requests') || error?.message?.includes('depleted')) {
@@ -1425,6 +1536,40 @@ app.post('/api/wallet/update', async (req, res) => {
     console.error("Wallet update error:", error);
     res.status(500).json({ error: "Failed to update wallet", details: error.message  });
   }
+});
+
+
+app.get('/api/bot/diagnostics', async (req, res) => {
+   const diag = {
+      isActive: botState.isActive,
+      wsStatus: botState.wsStatus,
+      lastError: botState.lastError,
+      lastErrorTime: botState.lastErrorTime,
+      isLiveTrading: botState.isLiveTrading,
+      allocation: botState.allocation,
+      recentErrors: botState.orderHistory.filter(o => o.type.includes('FAILED')),
+      symbol: botState.symbol,
+      reconnectCount: botState.reconnectCount,
+      lastHeartbeat: botState.lastHeartbeat
+   };
+   res.json(diag);
+});
+
+
+app.get('/api/bot/diagnostics', async (req, res) => {
+   const diag = {
+      isActive: botState.isActive,
+      wsStatus: botState.wsStatus,
+      lastError: botState.lastError,
+      lastErrorTime: botState.lastErrorTime,
+      isLiveTrading: botState.isLiveTrading,
+      allocation: botState.allocation,
+      recentErrors: botState.orderHistory.filter(o => o.type.includes('FAILED')),
+      symbol: botState.symbol,
+      reconnectCount: botState.reconnectCount,
+      lastHeartbeat: botState.lastHeartbeat
+   };
+   res.json(diag);
 });
 
 app.get('/api/bot/state', async (req, res) => {
@@ -2287,7 +2432,6 @@ app.get("/api/binance/health", async (req, res) => {
     if (!creds.apiKey || !creds.apiSecret) {
       return res.json({ status: 'missing', message: 'Ingen Binance API-nøgler fundet.' });
     }
-    
     // Test the keys using a simple read-only endpoint, e.g. ping or account status
     // For now we'll do a simple spot client check
     const client = new Spot(creds.apiKey, creds.apiSecret);
@@ -2530,19 +2674,38 @@ async function executePaperTrade(symbol: string, side: 'BUY' | 'SELL', allocatio
 
 app.post("/api/trade/execute", async (req, res) => {
   try {
-    const { symbol, side, allocation, isLiveTrading } = req.body;
+    const { symbol, side, allocation, isLiveTrading, useSmartRoute } = req.body;
     const creds = await getBinanceCredentials(req, req.headers);
     const apiKey = creds.apiKey;
     const apiSecret = creds.apiSecret;
 
+    let smartRoute = null;
+    if (useSmartRoute) {
+      const splitA = Math.round(allocation * 0.45 * 100) / 100;
+      const splitB = Math.round(allocation * 0.35 * 100) / 100;
+      const splitC = Math.round((allocation - splitA - splitB) * 100) / 100;
+      const estSlippageSavings = (allocation * 0.0008).toFixed(4); // simulate 0.08% savings on slippage
+
+      smartRoute = {
+        enabled: true,
+        splits: [
+          { pool: "Binance Liquidity Pool", allocation: splitA, percentage: 45 },
+          { pool: "Coinbase Pro Orderbook", allocation: splitB, percentage: 35 },
+          { pool: "Uniswap V3 Aggregator", allocation: splitC, percentage: 20 }
+        ],
+        slippageSavings: estSlippageSavings,
+        marketImpactMitigation: "0,042% forventet glidning minimeret"
+      };
+    }
+
     if (isLiveTrading && apiKey && apiSecret) {
       // Real trade
       const result = await executeTradeInternal(symbol, side, allocation, apiKey, apiSecret);
-      res.json({ success: true, result });
+      res.json({ success: true, result, smartRoute });
     } else {
       // Paper trade
       const result = await executePaperTrade(symbol, side, allocation);
-      res.json({ success: true, result, isPaper: true });
+      res.json({ success: true, result, isPaper: true, smartRoute });
     }
   } catch (error: any) {
     if (error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('too_many_requests') || error?.message?.includes('depleted')) {

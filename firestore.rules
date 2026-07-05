@@ -49,6 +49,11 @@ service cloud.firestore {
       allow create: if isRequestingAsSelf();
     }
 
+    match /tradingPresets/{presetId} {
+      allow read, update, delete: if isOwnerByUserId();
+      allow create: if isRequestingAsSelf();
+    }
+
     match /orderHistory/{orderId} {
       allow read, update, delete: if isOwnerByUserId();
       allow create: if isRequestingAsSelf();

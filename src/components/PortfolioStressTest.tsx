@@ -682,12 +682,12 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
                     data={chartData}
                     margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                    <XAxis dataKey="navn" stroke="#9ca3af" fontSize={10} tickLine={false} />
-                    <YAxis stroke="#9ca3af" fontSize={10} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" />
+                    <XAxis dataKey="navn" stroke="var(--color-gray-400)" fontSize={10} tickLine={false} />
+                    <YAxis stroke="var(--color-gray-400)" fontSize={10} tickLine={false} />
                     <RechartsTooltip
-                      contentStyle={{ backgroundColor: '#030712', borderColor: '#1f2937', borderRadius: '12px' }}
-                      labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                      contentStyle={{ backgroundColor: 'var(--color-gray-950)', borderColor: 'var(--color-gray-800)', borderRadius: '12px' }}
+                      labelStyle={{ color: 'var(--color-white)', fontWeight: 'bold' }}
                       itemStyle={{ fontSize: '11px' }}
                     />
                     <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '5px' }} />

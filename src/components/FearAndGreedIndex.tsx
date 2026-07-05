@@ -63,7 +63,7 @@ export function FearAndGreedIndex() {
                 <path 
                   d="M 20 100 A 80 80 0 0 1 180 100" 
                   fill="none" 
-                  stroke="#1f2937" 
+                  stroke="var(--color-gray-800)" 
                   strokeWidth="20" 
                   strokeLinecap="round"
                 />

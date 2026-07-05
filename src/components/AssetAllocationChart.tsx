@@ -173,7 +173,7 @@ export function AssetAllocationChart({ walletData, onAssetClick }: { walletData?
                        })}
                     </Pie>
                     <Tooltip 
-                       contentStyle={{ backgroundColor: '#030712', borderColor: '#374151', color: '#f3f4f6', borderRadius: '12px', fontSize: '14px' }}
+                       contentStyle={{ backgroundColor: 'var(--color-gray-950)', borderColor: 'var(--color-gray-700)', color: 'var(--color-gray-100)', borderRadius: '12px', fontSize: '14px' }}
                        formatter={(value: number, name: string, props: any) => [`${value}% ($${props.payload.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`, name]}
                     />
                  </PieChart>
@@ -200,7 +200,7 @@ export function AssetAllocationChart({ walletData, onAssetClick }: { walletData?
                        onClick={() => toggleAsset(entry.asset)}
                        className="flex items-center gap-2 cursor-pointer transition-opacity hover:opacity-80"
                     >
-                       <div className="size-2.5 rounded-full transition-colors" style={{ backgroundColor: isHidden ? '#374151' : getColor(entry.asset, index) }} />
+                       <div className="size-2.5 rounded-full transition-colors" style={{ backgroundColor: isHidden ? 'var(--color-gray-700)' : getColor(entry.asset, index) }} />
                        <span className={`text-xs font-mono transition-colors ${isHidden ? 'text-gray-600 line-through' : 'text-gray-300'}`}>
                           {entry.asset}
                        </span>

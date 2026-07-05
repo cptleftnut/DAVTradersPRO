@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { History, RefreshCw } from 'lucide-react';
+import { History, RefreshCw, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface Trade {
@@ -43,15 +43,57 @@ export const TradeHistoryTable: React.FC = () => {
   // Prepare data for chart (oldest first)
   const chartData = [...trades].reverse();
 
+  const exportToCSV = () => {
+    if (trades.length === 0) return;
+
+    const headers = ['Date', 'Symbol', 'Type', 'Entry Price', 'Exit Price', 'Gain/Loss'];
+    const rows = trades.map(trade => {
+      const date = trade.time?.toDate ? new Date(trade.time.toDate()).toLocaleString() : '';
+      return [
+        `"${date}"`,
+        `"${trade.symbol}"`,
+        `"${trade.type}"`,
+        trade.entryPrice || 0,
+        trade.exitPrice || 0,
+        trade.pnl || 0
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `trade-history-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden p-4 transition-all duration-300 hover:scale-[1.01] hover:z-10 relative">
       <h3 className="text-sm font-bold text-white flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
           <History className="size-4 text-cyan-400" /> Seneste Transaktioner
         </div>
-        <button onClick={() => setRefreshTrigger(prev => prev + 1)} className="p-1 hover:bg-gray-800 rounded-full transition-colors" title="Refresh">
-          <RefreshCw className="size-3.5 text-gray-400" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={exportToCSV} 
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 rounded-lg transition-colors cursor-pointer" 
+            title="Eksportér CSV"
+          >
+            <Download className="size-3.5" />
+            <span>Eksporter CSV</span>
+          </button>
+          <button 
+            onClick={() => setRefreshTrigger(prev => prev + 1)} 
+            className="p-1.5 hover:bg-gray-800 rounded-lg border border-gray-800 transition-colors cursor-pointer" 
+            title="Refresh"
+          >
+            <RefreshCw className="size-3.5 text-gray-400" />
+          </button>
+        </div>
       </h3>
       {loading ? (
         <div className="text-gray-500 text-xs">Indlæser...</div>
@@ -60,12 +102,12 @@ export const TradeHistoryTable: React.FC = () => {
           <div className="h-48 w-full mb-6">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="time" tickFormatter={(t) => t?.toDate ? new Date(t.toDate()).toLocaleDateString() : ''} tick={{fontSize: 10, fill: '#6b7280'}} />
-                <YAxis tick={{fontSize: 10, fill: '#6b7280'}} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-700)" />
+                <XAxis dataKey="time" tickFormatter={(t) => t?.toDate ? new Date(t.toDate()).toLocaleDateString() : ''} tick={{fontSize: 10, fill: 'var(--color-gray-500)'}} />
+                <YAxis tick={{fontSize: 10, fill: 'var(--color-gray-500)'}} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', fontSize: '12px', borderRadius: '8px' }}
-                  itemStyle={{ color: '#e5e7eb' }}
+                  contentStyle={{ backgroundColor: 'var(--color-gray-900)', borderColor: 'var(--color-gray-700)', fontSize: '12px', borderRadius: '8px' }}
+                  itemStyle={{ color: 'var(--color-gray-200)' }}
                   labelFormatter={(t) => t?.toDate ? new Date(t.toDate()).toLocaleDateString() : ''}
                   formatter={(value: number) => [`$${value.toFixed(2)}`, 'Gain/Loss']}
                 />
