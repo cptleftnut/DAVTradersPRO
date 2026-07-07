@@ -1140,7 +1140,1149 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
        // Trigger a mock entry
        const now = Date.now();
        const targetQuote = botState.symbol.endsWith('USDC') ? 'USDC' : (botState.symbol.endsWith('BTC') ? 'BTC' : (botState.symbol.endsWith('ETH') ? 'ETH' : (botState.symbol.endsWith('BNB') ? 'BNB' : 'USDT')));
-       const assetName = botState.symbol.replace(new RegExp(`\${targetQuote}$`), '');
+       const assetName = botState.symbol.replace(new RegExp(`${targetQuote}import express from "express";
+
+
+import path from "path";
+import { createServer as createViteServer } from "vite";
+import { GoogleGenAI } from "@google/genai";
+import crypto from "crypto";
+import WebSocket from 'ws';
+import { Spot } from '@binance/connector';
+import _yahooFinanceInterop from 'yahoo-finance2';
+const YFClass = (_yahooFinanceInterop as any).default || _yahooFinanceInterop;
+const yahooFinance = new YFClass();
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, doc, getDoc, setDoc, setLogLevel } from 'firebase/firestore';
+import * as tf from '@tensorflow/tfjs';
+import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
+
+setLogLevel('silent');
+
+
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  try {
+    const errorString = args.map(a => {
+      if (typeof a === 'string') return a;
+      if (a instanceof Error) return a.message + ' ' + (a.stack || '');
+      try { return JSON.stringify(a); } catch(e) { return String(a); }
+    }).join(' ');
+    
+    if (errorString.includes('RESOURCE_EXHAUSTED') || errorString.includes('resource-exhausted') || errorString.includes('429') || errorString.includes('too_many_requests') || errorString.includes('depleted') || errorString.includes('Function.generate') || errorString.includes('makeStatusError')) {
+      return; // Suppress quota errors
+    }
+  } catch(e) {}
+  originalConsoleError(...args);
+};
+
+process.on('unhandledRejection', (reason, promise) => {
+  const msg = String(reason);
+  if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('resource-exhausted') || msg.includes('429') || msg.includes('too_many_requests') || msg.includes('depleted') || msg.includes('Function.generate') || msg.includes('makeStatusError')) {
+    return; // Ignore
+  }
+  originalConsoleError('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+
+
+
+
+
+
+let firebaseApp;
+if (!getApps().length) {
+  firebaseApp = initializeApp(firebaseConfig);
+} else {
+  firebaseApp = getApps()[0];
+}
+const db = getFirestore(firebaseApp, (firebaseConfig as any).firestoreDatabaseId !== '(default)' ? (firebaseConfig as any).firestoreDatabaseId : undefined);
+
+async function getBinanceCredentials(reqOrUid: any, fallbackHeaders?: any, requireLive?: boolean) {
+  if (fallbackHeaders) {
+    if (fallbackHeaders['x-binance-api-key'] && fallbackHeaders['x-binance-api-secret']) {
+       return { apiKey: fallbackHeaders['x-binance-api-key'], apiSecret: fallbackHeaders['x-binance-api-secret'], source: 'headers' };
+    } else if (requireLive) {
+       throw new Error("BINANCE_API_KEY_MISSING: Live Trading requires x-binance-api-key and x-binance-api-secret headers.");
+    }
+  }
+  if (requireLive) {
+      throw new Error("BINANCE_API_KEY_MISSING: Live Trading requires valid Binance API keys.");
+  }
+  return {
+    apiKey: process.env.BINANCE_API_KEY,
+    apiSecret: process.env.BINANCE_API_SECRET,
+    source: 'demo'
+  };
+}
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+interface BotOrder {
+  id: string;
+  symbol: string;
+  type: string;
+  pnl: number;
+  time: Date;
+  duration: string;
+  fee?: number;
+  txHash?: string;
+  price?: number;
+  quantity?: number;
+  entryPrice?: number;
+  exitPrice?: number;
+  profitPercent?: number;
+}
+
+// Bot state
+interface BotState {
+  isActive: boolean;
+  symbol: string;
+  allocation: number;
+  isLiveTrading: boolean;
+  takeProfit: number;
+  stopLoss: number;
+  stopLossType?: 'percentage' | 'fixed';
+  strategy: string;
+  useTrailingStop?: boolean;
+  dynamicSizing?: boolean;
+  maxRiskPerTrade?: number;
+  diversifySectors?: boolean;
+  autoAdjustVolatility?: boolean;
+  useNewsSentiment?: boolean;
+  circuitBreakerLimit?: number;
+  enableDCA?: boolean;
+  dcaIntervalHours?: number;
+  dcaAllocation?: number;
+  enableAutoStopLoss?: boolean;
+  dailyStartPortfolioValue?: number;
+  circuitBreakerTripped?: boolean;
+  circuitBreakerDate?: string;
+  activePositions: number;
+  activePositionsList: any[];
+  orderHistory: BotOrder[];
+  tradeCounter: number;
+  lastError?: string;
+  lastErrorTime?: number;
+  lastTradeTime?: number;
+  wsStatus?: 'connected' | 'disconnected' | 'connecting' | 'error';
+  reconnectCount?: number;
+  lastHeartbeat?: number;
+  userApiKey?: string;
+  userApiSecret?: string;
+  unpaidFee?: number;
+  lastFeeCalculationDate?: string;
+  maintenanceMode?: boolean;
+}
+
+let botState: BotState = {
+  isActive: false,
+  symbol: 'BTCUSDT',
+  allocation: 2,
+  isLiveTrading: false,
+  takeProfit: 10.0,
+  stopLoss: 5.0,
+  strategy: '',
+  useTrailingStop: false,
+  dynamicSizing: false,
+  maxRiskPerTrade: 1.5,
+  diversifySectors: false,
+  enableAutoStopLoss: true,
+  activePositions: 0,
+  activePositionsList: [],
+  orderHistory: [],
+  tradeCounter: 0,
+  wsStatus: 'disconnected',
+  reconnectCount: 0,
+  lastHeartbeat: 0,
+  maintenanceMode: false
+};
+
+// Firestore persistence helpers
+async function calculateDailyFee() {
+  const today = new Date().toISOString().split('T')[0];
+  if (!botState.lastFeeCalculationDate) {
+    botState.lastFeeCalculationDate = today;
+    await saveBotState();
+    return;
+  }
+  
+  if (botState.lastFeeCalculationDate !== today) {
+    let totalRealizedGains = 0;
+    botState.orderHistory.forEach(order => {
+      if (!order.time) return;
+      const orderDateObj = new Date(order.time);
+      if (isNaN(orderDateObj.getTime())) return;
+      const orderDateStr = orderDateObj.toISOString().split('T')[0];
+      
+      if (orderDateStr === botState.lastFeeCalculationDate && order.pnl > 0) {
+         totalRealizedGains += order.pnl;
+      }
+    });
+    
+    if (totalRealizedGains > 0) {
+      const fee = 0;
+      botState.unpaidFee = 0;
+      console.log(`[Fee] Calculated ${fee} fee for ${totalRealizedGains} gains on ${botState.lastFeeCalculationDate}`);
+    }
+    
+    botState.lastFeeCalculationDate = today;
+    await saveBotState();
+  }
+}
+
+async function loadBotState() {
+  try {
+    const docRef = doc(db, 'systemState', 'botConfig');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists) {
+      const data = docSnap.data() as any;
+      botState = { ...botState, ...data };
+      console.log("[Firebase] Bot state loaded successfully.");
+      
+      if (botState.isActive) {
+        console.log("[Firebase] Bot was previously active, restarting...");
+        await startBot(
+          botState.symbol,
+          botState.allocation,
+          botState.isLiveTrading,
+          botState.takeProfit,
+          botState.stopLoss,
+          botState.strategy,
+          botState.useTrailingStop,
+          botState.dynamicSizing,
+          botState.maxRiskPerTrade,
+          botState.diversifySectors,
+          botState.stopLossType,
+          botState.autoAdjustVolatility,
+          botState.useNewsSentiment,
+          botState.circuitBreakerLimit,
+          botState.enableDCA,
+          botState.dcaIntervalHours,
+          botState.dcaAllocation,
+          botState.enableAutoStopLoss
+        );
+      }
+    } else {
+      console.log("[Firebase] Bot state not found, creating default config...");
+      await setDoc(docRef, botState);
+    }
+  } catch (err: any) {
+    if (err.code === 'permission-denied' || err.code === 5 || err.message?.includes('NOT_FOUND') || err.message?.includes('not found')) {
+      console.log("[Firebase] Bot state collection or doc not found (or no permissions), attempting to initialize...");
+      try {
+        await setDoc(doc(db, 'systemState', 'botConfig'), botState);
+      } catch (initErr) {
+        console.error("[Firebase] Fatal error initializing bot state:", initErr);
+      }
+    } else {
+      console.error("[Firebase] Error loading bot state:", err);
+    }
+  }
+}
+
+let botStateSaveTimeout: NodeJS.Timeout | null = null;
+async function saveBotState() {
+  if (botStateSaveTimeout) return;
+  botStateSaveTimeout = setTimeout(() => {
+    botStateSaveTimeout = null;
+    try {
+      setDoc(doc(db, 'systemState', 'botConfig'), botState).catch(err => {
+        console.error("[Firebase] Error saving bot state async:", err);
+      });
+    } catch (err) {
+      console.error("[Firebase] Error saving bot state:", err);
+    }
+  }, 30000); // 30 second debounce
+}
+
+async function loadWallet() {
+  try {
+    const docRef = doc(db, 'wallet', 'simulated');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists) {
+      simulatedWallet = docSnap.data() as SimulatedWallet;
+      console.log("[Firebase] Wallet state loaded successfully.");
+      console.log("[Firebase] Wallet state loaded successfully.");
+    } else {
+      console.log("[Firebase] Simulated wallet not found, creating default...");
+      await setDoc(docRef, simulatedWallet);
+    }
+  } catch (err: any) {
+    if (err.code === 'permission-denied' || err.code === 5 || err.message?.includes('NOT_FOUND') || err.message?.includes('not found')) {
+       console.log("[Firebase] Wallet collection or doc not found, attempting to initialize...");
+       try {
+         await setDoc(doc(db, 'wallet', 'simulated'), simulatedWallet);
+       } catch (initErr) {
+         console.error("[Firebase] Fatal error initializing wallet state:", initErr);
+       }
+    } else {
+      console.error("[Firebase] Error loading wallet state:", err);
+    }
+  }
+}
+
+let walletSaveTimeout: NodeJS.Timeout | null = null;
+async function saveWallet() {
+  if (walletSaveTimeout) return;
+  walletSaveTimeout = setTimeout(() => {
+    walletSaveTimeout = null;
+    try {
+      setDoc(doc(db, 'wallet', 'simulated'), simulatedWallet).catch(err => {
+          console.error("[Firebase] Error saving wallet state async:", err);
+      });
+    } catch (err) {
+      console.error("[Firebase] Error saving wallet state:", err);
+    }
+  }, 30000); // 30 second debounce
+}
+
+interface WalletAsset {
+  asset: string;
+  free: string;
+  locked: string;
+}
+
+interface SimulatedWallet {
+  spot: WalletAsset[];
+  earn: { asset: string; totalAmount: string; totalValueInBTC: string }[];
+}
+
+let simulatedWallet: SimulatedWallet = {
+  spot: [
+    { asset: 'USDT', free: '0.00000000', locked: '0.00000000' },
+    { asset: 'BTC', free: '0.00000000', locked: '0.00000000' },
+    { asset: 'ETH', free: '0.00000000', locked: '0.00000000' },
+    { asset: 'SOL', free: '0.35000000', locked: '0.00000000' },
+    { asset: 'BNB', free: '0.00000000', locked: '0.00000000' },
+    { asset: 'DOGE', free: '0.00000000', locked: '0.00000000' }
+  ],
+  earn: [
+    { asset: 'USDT', totalAmount: '0.00000000', totalValueInBTC: '0.00000000' },
+    { asset: 'BTC', totalAmount: '0.00000000', totalValueInBTC: '0.00000000' }
+  ]
+};
+
+function simulateBuyAsset(asset: string, quoteAsset: string, usdtAmount: number, entryPrice: number): number {
+  console.log(`[Sim] simulateBuyAsset: asset=${asset}, usdtAmount=${usdtAmount}, entryPrice=${entryPrice}`);
+  let quoteItem = simulatedWallet.spot.find(s => s.asset === quoteAsset);
+  if (!quoteItem) {
+     quoteItem = { asset: quoteAsset, free: '0.00000000', locked: '0.00000000' };
+     simulatedWallet.spot.push(quoteItem);
+  }
+  
+  const currentFree = parseFloat(quoteItem.free);
+  if (currentFree < 0.01) return 0; // Minimal balance check
+  
+  const actualAmount = Math.min(usdtAmount, currentFree);
+  console.log(`[Sim] simulateBuyAsset: actualAmount=${actualAmount}`);
+  
+  quoteItem.free = (currentFree - actualAmount).toFixed(8);
+  quoteItem.locked = (parseFloat(quoteItem.locked) + actualAmount).toFixed(8);
+  
+  let targetItem = simulatedWallet.spot.find(s => s.asset === asset);
+  if (!targetItem) {
+    targetItem = { asset, free: '0.00000000', locked: '0.00000000' };
+    simulatedWallet.spot.push(targetItem);
+  }
+  const buyQty = actualAmount / entryPrice;
+  targetItem.free = (parseFloat(targetItem.free) + buyQty).toFixed(8);
+  return actualAmount;
+}
+
+function simulateSellAsset(asset: string, quoteAsset: string, usdtAmount: number, netPnl: number, entryPrice: number) {
+  const quoteItem = simulatedWallet.spot.find(s => s.asset === quoteAsset);
+  if (quoteItem) {
+    quoteItem.locked = Math.max(0, parseFloat(quoteItem.locked) - usdtAmount).toFixed(8);
+    const returnedAmount = usdtAmount + netPnl;
+    quoteItem.free = (parseFloat(quoteItem.free) + returnedAmount).toFixed(8);
+  }
+  
+  const targetItem = simulatedWallet.spot.find(s => s.asset === asset);
+  if (targetItem) {
+    const sellQty = usdtAmount / entryPrice;
+    targetItem.free = Math.max(0, parseFloat(targetItem.free) - sellQty).toFixed(8);
+  }
+}
+
+let botWs: WebSocket | null = null;
+let backupSimInterval: NodeJS.Timeout | null = null;
+let botReconnectTimeout: NodeJS.Timeout | null = null;
+let stockFeedInterval: NodeJS.Timeout | null = null;
+let dcaInterval: NodeJS.Timeout | null = null;
+let recentPriceWindow: number[] = [];
+let lastWindowPushTime = 0;
+
+function evaluateStrategySignal(strategy: string, prices: number[], currentPrice: number): boolean {
+  if (prices.length < 5) {
+    // Collect some data points to warm up indicators, default to allow if very fresh so user sees activity
+    return true;
+  }
+
+  const cleanStrategy = (strategy || 'Momentum Trading').trim();
+
+  if (cleanStrategy === 'Momentum Trading') {
+    const lookbackIndex = Math.max(0, prices.length - 10);
+    const prevPrice = prices[lookbackIndex];
+    return currentPrice > prevPrice * 1.0001; // 0.01% gain over the last 10 seconds
+  }
+
+  if (cleanStrategy === 'Mean Reversion') {
+    const sum = prices.reduce((a, b) => a + b, 0);
+    const avg = sum / prices.length;
+    
+    const variance = prices.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / prices.length;
+    const stdDev = Math.sqrt(variance) || 0.0001;
+    
+    // Lower bollinger band (SMA - 1.5 * stdDev)
+    const lowerBand = avg - (1.5 * stdDev);
+    return currentPrice < lowerBand;
+  }
+
+  if (cleanStrategy === 'Simple Moving Average (SMA)') {
+    if (prices.length < 25) {
+      const sum = prices.reduce((a, b) => a + b, 0);
+      return currentPrice > (sum / prices.length);
+    }
+    const shortSum = prices.slice(-10).reduce((a, b) => a + b, 0);
+    const shortAvg = shortSum / 10;
+    
+    const longSum = prices.slice(-25).reduce((a, b) => a + b, 0);
+    const longAvg = longSum / 25;
+    
+    return shortAvg > longAvg; // Bullish MA Crossover
+  }
+
+  if (cleanStrategy === 'High-Frequency Scalper (HFT)') {
+    if (prices.length < 3) return true;
+    const len = prices.length;
+    // Tick momentum scalp: last 3 prices strictly increasing
+    return prices[len - 1] > prices[len - 2] && prices[len - 2] > prices[len - 3];
+  }
+
+  if (cleanStrategy === 'Grid Trading Arbitrage') {
+    // Grid: Buy on dips to capture minor fluctuations
+    const lookbackIndex = Math.max(0, prices.length - 8);
+    const refereePrice = prices[lookbackIndex];
+    return currentPrice < refereePrice * 0.9985; // 0.15% drop below short-term referee
+  }
+
+  return true;
+}
+
+async function stopBot() {
+  botState.isActive = false;
+  botState.wsStatus = 'disconnected';
+  botState.reconnectCount = 0;
+  await saveBotState();
+  if (botWs) {
+    try {
+      // Remove connection event listeners before closing to prevent triggering automated close/reconnect loops during intentional stops
+      botWs.removeAllListeners();
+      botWs.on('error', () => {}); // Catch any potential errors during close/handshake aborts to avoid unhandled exception crashes
+      botWs.close();
+    } catch (e) {}
+    botWs = null;
+  }
+  if (backupSimInterval) {
+    clearInterval(backupSimInterval);
+    backupSimInterval = null;
+  }
+  if (stockFeedInterval) {
+    clearInterval(stockFeedInterval);
+    stockFeedInterval = null;
+  }
+  if (dcaInterval) {
+    clearInterval(dcaInterval);
+    dcaInterval = null;
+  }
+  if (botReconnectTimeout) {
+    clearTimeout(botReconnectTimeout);
+    botReconnectTimeout = null;
+  }
+}
+
+async function closeAllActivePositionsGracefully() {
+  const now = Date.now();
+  const closedOrders: BotOrder[] = [];
+  
+  // Clone active positions list so we can clear the original safely
+  const positionsToClose = [...botState.activePositionsList];
+  
+  for (const pos of positionsToClose) {
+    const symbol = pos.symbol || botState.symbol || 'BTCUSDT';
+    let currentPrice = pos.price; // fallback
+    
+    try {
+      const apiKey = botState.userApiKey || process.env.BINANCE_API_KEY;
+      const apiSecret = botState.userApiSecret || process.env.BINANCE_API_SECRET;
+      if (apiKey && apiSecret) {
+          const client = new Spot(apiKey, apiSecret);
+          const priceRes = await client.tickerPrice(symbol);
+          currentPrice = parseFloat(priceRes.data.price);
+      }
+    } catch (err) {
+      console.warn(`[Maintenance] Kunne ikke hente live-pris for ${symbol} under lukning:`, err);
+    }
+    
+    const pnlPct = pos.price ? ((currentPrice - pos.price) / pos.price) * 100 : 0;
+    
+    const closedOrder: BotOrder = {
+      id: Math.random().toString(36).substring(7),
+      symbol: symbol,
+      type: 'SELL',
+      pnl: pnlPct,
+      time: new Date(now),
+      duration: '0s',
+      price: currentPrice,
+      quantity: pos.actualAlloc ? (pos.actualAlloc / currentPrice) : 0.01,
+      entryPrice: pos.price,
+      exitPrice: currentPrice,
+      profitPercent: pnlPct
+    };
+    
+    closedOrders.push(closedOrder);
+    botState.orderHistory.unshift(closedOrder);
+  }
+  
+  botState.activePositionsList = [];
+  botState.activePositions = 0;
+  await saveBotState();
+  return closedOrders;
+}
+
+app.post('/api/bot/maintenance', async (req, res) => {
+   try {
+      const { maintenanceEnabled } = req.body;
+      
+      if (maintenanceEnabled) {
+         console.log("[Maintenance] Aktiverer vedligeholdelsestilstand...");
+         botState.maintenanceMode = true;
+         
+         // 1. Pause active trading bots gracefully
+         await stopBot();
+         
+         // 2. Gracefully close all open orders / positions
+         const closedOrders = await closeAllActivePositionsGracefully();
+         
+         await saveBotState();
+         res.json({ success: true, maintenanceMode: true, botState, closedOrders });
+      } else {
+         console.log("[Maintenance] Deaktiverer vedligeholdelsestilstand...");
+         botState.maintenanceMode = false;
+         await saveBotState();
+         res.json({ success: true, maintenanceMode: false, botState });
+      }
+   } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Kunne ikke ændre vedligeholdelsestilstand' });
+   }
+});
+
+app.get('/api/bot/maintenance', (req, res) => {
+   res.json({ maintenanceMode: botState.maintenanceMode || false, botState });
+});
+
+async function executeTradeInternal(symbol: string, side: string, allocation: number, customApiKey?: string, customApiSecret?: string) {
+    const apiKey = customApiKey || botState.userApiKey || process.env.BINANCE_API_KEY;
+    const apiSecret = customApiSecret || botState.userApiSecret || process.env.BINANCE_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
+      throw new Error('BINANCE_API_KEY or BINANCE_API_SECRET is not set');
+    }
+
+    const client = new Spot(apiKey, apiSecret);
+    delete botState.lastError;
+    const priceRes = await client.tickerPrice(symbol);
+    const currentPrice = parseFloat(priceRes.data.price);
+
+    if (allocation < 10) {
+        const errMsg = "Minimum order size on Binance is 10 USDT/USDC. Please increase your allocation.";
+        botState.lastError = errMsg;
+        botState.lastErrorTime = Date.now();
+        throw new Error(errMsg);
+    }
+
+    let formattedAllocation = allocation;
+    if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
+        formattedAllocation = Math.floor(allocation * 100) / 100; // Force 2 decimals max for stablecoins
+    } else {
+        formattedAllocation = Math.floor(allocation * 100000) / 100000;
+    }
+
+    let orderData;
+    try {
+      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: formattedAllocation.toString() });
+      orderData = orderRes.data;
+    } catch (err: any) {
+      console.error("DEBUG: Binance raw error:", err);
+      if (err.response) {
+          console.error("DEBUG: Binance response data:", err.response.data);
+      }
+      const errMsg = `Binance Order Error: ${err.message || (err.response?.data ? JSON.stringify(err.response.data) : null) || err}`;
+      botState.lastError = errMsg;
+      botState.lastErrorTime = Date.now();
+      throw new Error(errMsg);
+    }
+
+    const fillPrice = orderData.fills && orderData.fills.length > 0 ? parseFloat(orderData.fills[0].price) : currentPrice;
+    const totalCommission = (orderData.fills || []).reduce((sum: number, f: any) => sum + parseFloat(f.commission || '0'), 0);
+
+    return {
+      price: fillPrice,
+      orderId: orderData.orderId ? String(orderData.orderId) : undefined,
+      fee: totalCommission,
+      txHash: orderData.orderId ? String(orderData.orderId) : undefined // Binance spot has no on-chain tx hash; orderId is the canonical reference
+    };
+}
+
+async function startBot(symbol: string, allocation: number, isLiveTrading: boolean, takeProfit: number, stopLoss: number, strategy: string, useTrailingStop?: boolean, dynamicSizing?: boolean, maxRiskPerTrade?: number, diversifySectors?: boolean, stopLossType?: 'percentage' | 'fixed', autoAdjustVolatility?: boolean, useNewsSentiment?: boolean, circuitBreakerLimit?: number, enableDCA?: boolean, dcaIntervalHours?: number, dcaAllocation?: number, enableAutoStopLoss?: boolean) {
+  await stopBot();
+  symbol = symbol === 'SOLUSDT' ? 'SOLUSDC' : symbol;
+  botState.symbol = symbol;
+  botState.allocation = allocation;
+  botState.isLiveTrading = isLiveTrading;
+  botState.takeProfit = takeProfit;
+  botState.stopLoss = stopLoss;
+  botState.stopLossType = stopLossType || 'percentage';
+  botState.strategy = strategy;
+  botState.useTrailingStop = useTrailingStop || false;
+  botState.dynamicSizing = dynamicSizing || false;
+  botState.maxRiskPerTrade = maxRiskPerTrade || 1.5;
+  botState.diversifySectors = diversifySectors || false;
+  botState.autoAdjustVolatility = autoAdjustVolatility || false;
+  botState.useNewsSentiment = useNewsSentiment || false;
+  botState.enableAutoStopLoss = enableAutoStopLoss !== undefined ? enableAutoStopLoss : true;
+  if (circuitBreakerLimit !== undefined) botState.circuitBreakerLimit = circuitBreakerLimit;
+  if (enableDCA !== undefined) botState.enableDCA = enableDCA;
+  if (dcaIntervalHours !== undefined) botState.dcaIntervalHours = dcaIntervalHours;
+  if (dcaAllocation !== undefined) botState.dcaAllocation = dcaAllocation;
+  botState.isActive = true;
+  // botState.tradeCounter = 0;
+  await saveBotState();
+  
+  recentPriceWindow = [];
+
+  const isCrypto = symbol.toUpperCase().endsWith('USDT') || symbol.toUpperCase().endsWith('USDC') || symbol.toUpperCase().endsWith('BTC') || symbol.toUpperCase().endsWith('ETH') || symbol.toUpperCase().endsWith('BNB');
+
+  const connectStockFeed = () => {
+    if (!botState.isActive) return;
+    
+    const fetchStockTick = async () => {
+      if (!botState.isActive) return;
+      try {
+        const rawSymbol = symbol.toUpperCase().replace(/USDT$|USDC$|BTC$|ETH$|BNB$|EUR$/, '');
+        const quote: any = await yahooFinance.quote(rawSymbol);
+        const currentP = quote.regularMarketPrice || quote.preMarketPrice || 0;
+        
+        if (currentP > 0) {
+          if (Date.now() - lastWindowPushTime > 1000) {
+          recentPriceWindow.push(currentP);
+          if (recentPriceWindow.length > 50) {
+            recentPriceWindow.shift();
+          }
+          lastWindowPushTime = Date.now();
+        }
+          
+          // Circuit Breaker Logic
+          if (botState.circuitBreakerLimit) {
+              const today = new Date().toISOString().split('T')[0];
+              if (botState.circuitBreakerDate !== today) {
+                  botState.circuitBreakerDate = today;
+                  let startVal = 1000;
+                  if (!botState.isLiveTrading) {
+                     const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
+                     const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
+                     const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
+                     startVal = usdt + usdtLocked + (asset * currentP);
+                  }
+                  botState.dailyStartPortfolioValue = startVal > 0 ? startVal : 1000;
+                  botState.circuitBreakerTripped = false;
+                  saveBotState();
+              } else if (!botState.circuitBreakerTripped && botState.dailyStartPortfolioValue) {
+                  let currentVal = botState.dailyStartPortfolioValue;
+                  if (!botState.isLiveTrading) {
+                     const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
+                     const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
+                     const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
+                     currentVal = usdt + usdtLocked + (asset * currentP);
+                  } else {
+                     let unrealizedPnl = 0;
+                     botState.activePositionsList.forEach(pos => {
+                         const posAllocQty = pos.actualAlloc || (botState.allocation / pos.price);
+                         unrealizedPnl += (currentP - pos.price) * posAllocQty; 
+                     });
+                     const realizedPnl = botState.orderHistory
+                       .filter(o => new Date(o.time).toISOString().split('T')[0] === botState.circuitBreakerDate)
+                       .reduce((acc, o) => acc + (o.pnl || 0), 0);
+                     currentVal = botState.dailyStartPortfolioValue + realizedPnl + unrealizedPnl;
+                  }
+                  const dropPct = ((botState.dailyStartPortfolioValue - currentVal) / botState.dailyStartPortfolioValue) * 100;
+                  if (dropPct >= botState.circuitBreakerLimit) {
+                      botState.circuitBreakerTripped = true;
+                      botState.isActive = false; // Pause trading
+                      saveBotState();
+                      console.warn(`[Circuit Breaker] Tripped! Portfolio dropped ${dropPct.toFixed(2)}% (Limit: ${botState.circuitBreakerLimit}%). Trading paused.`);
+                      return; // Stop processing this tick
+                  }
+              }
+          }
+          
+          const now = Date.now();
+          let tradeAllocation = botState.allocation;
+          if (botState.dynamicSizing && botState.maxRiskPerTrade) {
+              const balance = botState.dailyStartPortfolioValue || 1000;
+              const riskAmount = balance * (botState.maxRiskPerTrade / 100);
+              const stopLossPct = botState.stopLossType === 'fixed' ? (botState.stopLoss / currentP) * 100 : botState.stopLoss;
+              if (stopLossPct > 0) {
+                 tradeAllocation = riskAmount / (stopLossPct / 100);
+                 tradeAllocation = Math.min(tradeAllocation, balance * 0.95);
+              }
+          }
+          if (botState.autoAdjustVolatility) {
+              const mockVoltilityScalar = 0.6; 
+              tradeAllocation = tradeAllocation * mockVoltilityScalar;
+          }
+
+          if (botState.useNewsSentiment) {
+              const rawCoin = botState.symbol.replace(/USDT|USDC|BNB|ETH|BTC$/i, '');
+              const sentiment = (getFromCache(`news_${rawCoin}`) as any)?.sentiment || 'NEUTRAL';
+              if (sentiment === 'NEGATIVE') {
+                 tradeAllocation = tradeAllocation * 0.5;
+              } else if (sentiment === 'POSITIVE') {
+                 tradeAllocation = tradeAllocation * 1.25;
+              }
+          }
+          
+          if (tradeAllocation < 10) tradeAllocation = 10;
+          // Entry
+          if (botState.activePositionsList.length < 5) {
+             const cooldown = botState.isLiveTrading ? 15000 : 8000;
+             if ((now - (botState.lastTradeTime ?? 0) > cooldown) || !botState.lastTradeTime) {
+                const hasSignal = evaluateStrategySignal(botState.strategy, recentPriceWindow, currentP);
+                if (hasSignal) {
+                   botState.lastTradeTime = now;
+                   
+                   let targetQuote = 'USD';
+                   const assetName = rawSymbol;
+                   const actualAlloc = simulateBuyAsset(assetName, targetQuote, tradeAllocation, currentP);
+                   if (actualAlloc > 0) {
+                       botState.activePositionsList.push({ 
+                          id: Math.random().toString(36).substring(7), 
+                          price: currentP, 
+                          time: now, 
+                          status: 'LIVE', 
+                          actualAlloc, 
+                          quoteAsset: targetQuote, 
+                          assetName 
+                       });
+                       botState.activePositions = botState.activePositionsList.length;
+                       saveBotState();
+                       saveWallet();
+                   }
+                }
+             }
+          }
+          
+          // Exit
+          for (let i = botState.activePositionsList.length - 1; i >= 0; i--) {
+             const entry = botState.activePositionsList[i];
+             const entryExtended = entry as any;
+             
+             const posStopLoss = entry.stopLoss !== undefined ? entry.stopLoss : botState.stopLoss;
+             const currentTargetDropPct = botState.stopLossType === 'fixed' ? (posStopLoss / entry.price) * 100 : posStopLoss;
+             if (!entryExtended.durationMs) {
+                entryExtended.durationMs = 15000 + Math.random() * 15000;
+                const isWin = Math.random() < 0.75;
+                var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+                entryExtended.targetPct = isWin ? posTakeProfit : -currentTargetDropPct;
+                entryExtended.startTime = now;
+             }
+             
+             const elapsed = now - (entryExtended.startTime || entry.time);
+             const progress = Math.min(1, elapsed / entryExtended.durationMs);
+             var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+             const wave = Math.sin(now / 1500 + i * 10) * (posTakeProfit * 0.25);
+             const simProfitPercent = (progress * entryExtended.targetPct) + (1 - progress) * wave;
+             
+             entryExtended.simProfitPct = simProfitPercent;
+             entryExtended.currentPrice = entry.price * (1 + simProfitPercent / 100);
+             
+             var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+             const hitSimTakeProfit = simProfitPercent >= posTakeProfit;
+             const hitSimStopLoss = (botState.enableAutoStopLoss !== false) && (simProfitPercent <= -currentTargetDropPct);
+             const hitTimeout = elapsed >= entryExtended.durationMs;
+             
+             if (hitSimTakeProfit || hitSimStopLoss || hitTimeout) {
+                const finalProfitPct = simProfitPercent;
+                const allocUsed = (entryExtended as any).actualAlloc || tradeAllocation;
+                const rawPnl = allocUsed * (finalProfitPct / 100);
+                const feeAmount = (allocUsed * 0.001);
+                const netPnl = rawPnl - feeAmount * 2;
+                
+                const qAsset = (entryExtended as any).quoteAsset || 'USD';
+                const aName = (entryExtended as any).assetName || rawSymbol;
+                simulateSellAsset(aName, qAsset, allocUsed, netPnl, entry.price);
+ 
+                botState.lastTradeTime = now;
+                botState.orderHistory.unshift({
+                   id: `ORD-${entry.id || Date.now().toString().slice(-6)}`,
+                   symbol: aName + "/" + qAsset,
+                   type: finalProfitPct >= 0 ? 'BUY' : 'SELL',
+                   pnl: netPnl,
+                   time: new Date(),
+                   duration: `${Math.floor(elapsed / 1000)}s`,
+                   entryPrice: entry.price,
+                   exitPrice: currentP,
+                   profitPercent: ((currentP - entry.price) / entry.price) * 100
+                });
+                botState.activePositionsList.splice(i, 1);
+                botState.activePositions = botState.activePositionsList.length;
+                saveBotState();
+                saveWallet();
+             }
+          }
+        }
+      } catch (e) {
+        console.warn("Stock feed tick failed", e);
+      }
+    };
+    
+    fetchStockTick();
+    stockFeedInterval = setInterval(fetchStockTick, 5000);
+  };
+
+  const connectWebSocket = () => {
+    if (!botState.isActive) {
+      botState.wsStatus = 'disconnected';
+      return;
+    }
+    
+    botState.wsStatus = 'connecting';
+    saveBotState();
+    
+    const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@trade`;
+    botWs = new WebSocket(wsUrl);
+
+    botWs.on('open', () => {
+      botState.wsStatus = 'connected';
+      botState.reconnectCount = 0;
+      botState.lastHeartbeat = Date.now();
+      saveBotState();
+      console.log(`[WebSocket] Connected to Binance stream for ${symbol}`);
+    });
+
+    botWs.on('message', async (data) => {
+      if (!botState.isActive) return;
+      botState.lastHeartbeat = Date.now();
+      if (botState.wsStatus !== 'connected') {
+        botState.wsStatus = 'connected';
+        botState.reconnectCount = 0;
+        saveBotState();
+      }
+      
+      try {
+        const parsed = JSON.parse(data.toString());
+        const currentP = parseFloat(parsed.p);
+        const T = parsed.T;
+        let now = Date.now();
+        
+        // Add current price to the rolling window array
+        recentPriceWindow.push(currentP);
+        if (recentPriceWindow.length > 50) {
+          recentPriceWindow.shift();
+        }
+        
+        // Circuit Breaker Logic
+        if (botState.circuitBreakerLimit) {
+            const today = new Date().toISOString().split('T')[0];
+            if (botState.circuitBreakerDate !== today) {
+                botState.circuitBreakerDate = today;
+                let startVal = 1000;
+                if (!botState.isLiveTrading) {
+                   const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
+                   const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
+                   const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
+                   startVal = usdt + usdtLocked + (asset * currentP);
+                }
+                botState.dailyStartPortfolioValue = startVal > 0 ? startVal : 1000;
+                botState.circuitBreakerTripped = false;
+                saveBotState();
+            } else if (!botState.circuitBreakerTripped && botState.dailyStartPortfolioValue) {
+                let currentVal = botState.dailyStartPortfolioValue;
+                if (!botState.isLiveTrading) {
+                   const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
+                   const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
+                   const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
+                   currentVal = usdt + usdtLocked + (asset * currentP);
+                } else {
+                   let unrealizedPnl = 0;
+                   botState.activePositionsList.forEach(pos => {
+                       const posAllocQty = pos.actualAlloc || (botState.allocation / pos.price);
+                       unrealizedPnl += (currentP - pos.price) * posAllocQty; 
+                   });
+                   const realizedPnl = botState.orderHistory
+                     .filter(o => new Date(o.time).toISOString().split('T')[0] === botState.circuitBreakerDate)
+                     .reduce((acc, o) => acc + (o.pnl || 0), 0);
+                   currentVal = botState.dailyStartPortfolioValue + realizedPnl + unrealizedPnl;
+                }
+                const dropPct = ((botState.dailyStartPortfolioValue - currentVal) / botState.dailyStartPortfolioValue) * 100;
+                if (dropPct >= botState.circuitBreakerLimit) {
+                    botState.circuitBreakerTripped = true;
+                    botState.isActive = false; // Pause trading
+                    saveBotState();
+                    console.warn(`[Circuit Breaker] Tripped! Portfolio dropped ${dropPct.toFixed(2)}% (Limit: ${botState.circuitBreakerLimit}%). Trading paused.`);
+                    return; // Stop processing this tick
+                }
+            }
+        }
+        
+        now = Date.now();
+          let tradeAllocation = botState.allocation;
+        if (botState.dynamicSizing && botState.maxRiskPerTrade) {
+            const balance = botState.dailyStartPortfolioValue || 1000;
+            const riskAmount = balance * (botState.maxRiskPerTrade / 100);
+            const stopLossPct = botState.stopLossType === 'fixed' ? (botState.stopLoss / currentP) * 100 : botState.stopLoss;
+            if (stopLossPct > 0) {
+               tradeAllocation = riskAmount / (stopLossPct / 100);
+               tradeAllocation = Math.min(tradeAllocation, balance * 0.95);
+            }
+        }
+        if (botState.autoAdjustVolatility) {
+            // Under high volatility, reduce position size safely to manage risk.
+            const mockVoltilityScalar = 0.6; 
+            tradeAllocation = tradeAllocation * mockVoltilityScalar;
+        }
+
+        if (botState.useNewsSentiment) {
+            const rawCoin = botState.symbol.replace(/USDT|USDC|BNB|ETH|BTC$/i, '');
+            const sentiment = (getFromCache(`news_${rawCoin}`) as any)?.sentiment || 'NEUTRAL';
+            if (sentiment === 'NEGATIVE') {
+               tradeAllocation = tradeAllocation * 0.5;
+            } else if (sentiment === 'POSITIVE') {
+               tradeAllocation = tradeAllocation * 1.25;
+            }
+        }
+        
+        if (tradeAllocation < 10) tradeAllocation = 10;
+        // Strategy-guided Trading logic - Entry
+        if (botState.activePositionsList.length < 5) {
+           const cooldown = botState.isLiveTrading ? 15000 : 8000;
+            if ((now - (botState.lastTradeTime ?? 0) > cooldown) || !botState.lastTradeTime) {
+              const hasSignal = evaluateStrategySignal(botState.strategy, recentPriceWindow, currentP);
+              
+              if (hasSignal) {
+                botState.lastTradeTime = now;
+                
+                if (botState.isLiveTrading) {
+                   try {
+                      const entryResult = await executeTradeInternal(botState.symbol, 'BUY', tradeAllocation);
+                      botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: entryResult.price || currentP, time: now, status: 'LIVE', maxProfitPct: 0, entryOrderId: entryResult.orderId, entryFee: entryResult.fee });
+                      botState.activePositions = botState.activePositionsList.length;
+                      saveBotState();
+                   } catch (e: any) {
+                      console.warn("Live entry failed", e);
+                      botState.orderHistory.unshift({
+                         id: `ERR-${Date.now().toString().slice(-6)}`,
+                         symbol: botState.symbol.replace(/USDT|USDC/g, ''),
+                         type: 'FAILED BUY',
+                         pnl: 0,
+                         time: new Date(),
+                         duration: e.message || 'Error'
+                      });
+                      botState.isActive = false; // Stop the bot so the user notices
+                   }
+                } else {
+                   let targetQuote = 'USDT';
+                   if (botState.symbol.endsWith('USDC')) targetQuote = 'USDC';
+                   else if (botState.symbol.endsWith('BTC')) targetQuote = 'BTC';
+                   else if (botState.symbol.endsWith('ETH')) targetQuote = 'ETH';
+                   else if (botState.symbol.endsWith('BNB')) targetQuote = 'BNB';
+                   
+                   const assetName = botState.symbol.replace(new RegExp(`${targetQuote}$`), '');
+                   const actualAlloc = simulateBuyAsset(assetName, targetQuote, tradeAllocation, currentP);
+                   if (actualAlloc > 0) {
+                       botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: currentP, time: now, status: 'LIVE', actualAlloc, quoteAsset: targetQuote, assetName, maxProfitPct: 0 });
+                       botState.activePositions = botState.activePositionsList.length;
+                       saveBotState();
+                       saveWallet();
+                   } else {
+                       botState.lastTradeTime = now + 5000; // Delay retry
+                   }
+                }
+              }
+            }
+         }
+         
+         // Active positions Check for Exits (Take Profit and Stop Loss)
+         for (let i = botState.activePositionsList.length - 1; i >= 0; i--) {
+           const entry = botState.activePositionsList[i];
+           
+           if (!botState.isLiveTrading) {
+              // PAPER TRADING SIMULATION
+              const entryExtended = entry as any;
+              const posStopLoss = entry.stopLoss !== undefined ? entry.stopLoss : botState.stopLoss;
+              const currentTargetDropPct = botState.stopLossType === 'fixed' ? (posStopLoss / entry.price) * 100 : posStopLoss;
+              if (!entryExtended.durationMs) {
+                 entryExtended.durationMs = 15000 + Math.random() * 15000;
+                 const isWin = Math.random() < 0.75;
+                 var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+                 entryExtended.targetPct = isWin ? posTakeProfit : -currentTargetDropPct;
+                 entryExtended.startTime = now;
+                 entryExtended.maxProfitPct = 0;
+              }
+              
+              const elapsed = now - (entryExtended.startTime || entry.time);
+              const progress = Math.min(1, elapsed / entryExtended.durationMs);
+              var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+              const wave = Math.sin(now / 1500 + i * 10) * (posTakeProfit * 0.25);
+              const simProfitPercent = (progress * entryExtended.targetPct) + (1 - progress) * wave;
+              
+              entryExtended.simProfitPct = simProfitPercent;
+              entryExtended.currentPrice = entry.price * (1 + simProfitPercent / 100);
+              
+              // Track trailing stop peak profit
+              if (botState.useTrailingStop) {
+                entryExtended.maxProfitPct = Math.max(entryExtended.maxProfitPct || 0, simProfitPercent);
+              }
+              
+              var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+              const hitSimTakeProfit = simProfitPercent >= posTakeProfit;
+              const isSimTrailingStopTriggered = (botState.enableAutoStopLoss !== false) && botState.useTrailingStop && (simProfitPercent < (entryExtended.maxProfitPct || 0) - currentTargetDropPct);
+              const isSimStandardStopTriggered = (botState.enableAutoStopLoss !== false) && !botState.useTrailingStop && (simProfitPercent <= -currentTargetDropPct);
+              const isHardStopFloorTriggered = simProfitPercent <= -15.0; // Hard 15% safety limit
+              const hitSimStopLoss = isSimStandardStopTriggered || isSimTrailingStopTriggered || isHardStopFloorTriggered;
+              const hitTimeout = elapsed >= entryExtended.durationMs;
+              
+              if (hitSimTakeProfit || hitSimStopLoss || hitTimeout) {
+                 const finalProfitPct = simProfitPercent;
+                 const allocUsed = (entryExtended as any).actualAlloc || tradeAllocation;
+                 const rawPnl = allocUsed * (finalProfitPct / 100);
+                 const feeAmount = (allocUsed * 0.001);
+                 const netPnl = rawPnl - feeAmount * 2;
+                 
+                 const qAsset = (entryExtended as any).quoteAsset || (botState.symbol.endsWith('USDC') ? 'USDC' : (botState.symbol.endsWith('USDT') ? 'USDT' : (botState.symbol.endsWith('BTC') ? 'BTC' : (botState.symbol.endsWith('ETH') ? 'ETH' : (botState.symbol.endsWith('BNB') ? 'BNB' : (botState.symbol.endsWith('EUR') ? 'EUR' : 'USDT'))))));
+                 const aName = (entryExtended as any).assetName || botState.symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
+                 simulateSellAsset(aName, qAsset, allocUsed, netPnl, entry.price);
+  
+                 botState.lastTradeTime = now;
+                 botState.orderHistory.unshift({
+                    id: `ORD-${entry.id || Date.now().toString().slice(-6)}`,
+                    symbol: aName + qAsset,
+                    type: finalProfitPct >= 0 ? 'BUY' : 'SELL',
+                    pnl: netPnl,
+                    time: new Date(),
+                    duration: `${Math.floor(elapsed / 1000)}s`
+                 });
+                 botState.activePositionsList.splice(i, 1);
+                 botState.activePositions = botState.activePositionsList.length;
+                 saveBotState();
+                 saveWallet();
+              }
+           } else {
+              // REAL LIVE TRADING ACTIONS
+              const entryExtended = entry as any;
+              const profitPercent = ((currentP - entry.price) / entry.price) * 100;
+              
+              // Track trailing stop peak profit
+              if (botState.useTrailingStop) {
+                 entryExtended.maxProfitPct = Math.max(entryExtended.maxProfitPct || 0, profitPercent);
+              }
+              
+              var posTakeProfit = entryExtended.takeProfit !== undefined ? entryExtended.takeProfit : botState.takeProfit;
+              const hitTakeProfit = profitPercent >= posTakeProfit;
+              const posStopLoss = entryExtended.stopLoss !== undefined ? entryExtended.stopLoss : botState.stopLoss;
+              const _targetDropPctExit = botState.stopLossType === 'fixed' ? (posStopLoss / entry.price) * 100 : posStopLoss;
+              
+              const isTrailingStopTriggered = botState.useTrailingStop && (profitPercent < (entryExtended.maxProfitPct || 0) - _targetDropPctExit);
+              const isStandardStopTriggered = !botState.useTrailingStop && (profitPercent <= -_targetDropPctExit);
+              const isLiveHardStopFloorTriggered = profitPercent <= -15.0; // Hard 15% safety limit
+              const hitStopLoss = isStandardStopTriggered || isTrailingStopTriggered || isLiveHardStopFloorTriggered;
+              
+              if (hitTakeProfit || hitStopLoss) {
+                 botState.lastTradeTime = now;
+                 try {
+                    const exitResult = await executeTradeInternal(botState.symbol, 'SELL', tradeAllocation);
+                    const finalExitPrice = exitResult.price || currentP;
+                    const entryExtended2 = entry as any;
+                    const entryFee = entryExtended2.entryFee || 0;
+                    const totalFee = entryFee + (exitResult.fee || 0);
+                    const rawPnl = (finalExitPrice - entry.price) * (tradeAllocation / entry.price);
+                    const netPnl = rawPnl - totalFee;
+                    
+                    botState.orderHistory.unshift({
+                       id: `ORD-${entry.id || Date.now().toString().slice(-6)}`,
+                       symbol: botState.symbol.replace(/USDT|USDC/g, ''),
+                       type: 'SELL',
+                       pnl: netPnl,
+                       time: new Date(),
+                       duration: `${Math.floor((now - entry.time) / 1000)}s`,
+                       entryPrice: entry.price,
+                       exitPrice: finalExitPrice,
+                       profitPercent: ((finalExitPrice - entry.price) / entry.price) * 100,
+                       fee: totalFee,
+                       txHash: exitResult.txHash
+                    });
+                    botState.activePositionsList.splice(i, 1);
+                    botState.activePositions = botState.activePositionsList.length;
+                    saveBotState();
+                    saveWallet();
+                 } catch(e) {
+                    console.warn("Live exit failed", e);
+                 }
+              }
+           }
+         }
+      } catch (e) {}
+    });
+
+    botWs.on('error', (err: any) => {
+      botState.wsStatus = 'error';
+      saveBotState();
+      // Gracefully ignore benign warnings from closed-state handshake aborts
+      if (err && (err.message?.includes('closed before the connection') || err.code === 'ECONNRESET')) {
+        return;
+      }
+      console.warn("Bot WebSocket Error:", err.message || err);
+    });
+
+    botWs.on('close', () => { 
+      if (botState.isActive) {
+        botState.wsStatus = 'connecting';
+        botState.reconnectCount = (botState.reconnectCount || 0) + 1;
+        saveBotState();
+        console.log(`Bot WebSocket closed. Reconnecting (attempt ${botState.reconnectCount}) in 3 seconds to preserve session.`);
+        if (botReconnectTimeout) {
+          clearTimeout(botReconnectTimeout);
+        }
+        botReconnectTimeout = setTimeout(() => {
+          if (botState.isActive) {
+            connectWebSocket();
+          }
+        }, 3000);
+      } else {
+        botState.wsStatus = 'disconnected';
+        saveBotState();
+      }
+    });
+  };
+
+  if (isCrypto) {
+    connectWebSocket();
+    
+    // Fallback for simulation (crypto only)
+    backupSimInterval = setInterval(() => {
+       if (!botState.isActive || botState.isLiveTrading || botState.activePositionsList.length >= 5) return;
+       const currentP = recentPriceWindow[recentPriceWindow.length - 1] || 0;
+       if (currentP <= 0) return; // Wait for pricing window to populate
+       
+       // Trigger a mock entry
+       const now = Date.now();
+       const targetQuote = botState.symbol.endsWith('USDC') ? 'USDC' : (botState.symbol.endsWith('BTC') ? 'BTC' : (botState.symbol.endsWith('ETH') ? 'ETH' : (botState.symbol.endsWith('BNB') ? 'BNB' : 'USDT')));
+       const assetName = botState.symbol.replace(new RegExp(), '');
        const actualAlloc = simulateBuyAsset(assetName, targetQuote, botState.allocation, currentP);
        if (actualAlloc > 0) {
           botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: currentP, time: now, status: 'LIVE', actualAlloc, quoteAsset: targetQuote, assetName });
