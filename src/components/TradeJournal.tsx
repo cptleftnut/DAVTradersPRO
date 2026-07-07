@@ -221,23 +221,23 @@ export const TradeJournal = React.memo(function TradeJournal({
               <div className="grid grid-cols-3 gap-3 mb-4">
                  <div>
                    <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Ticker</label>
-                   <input type="text" value={newTicker} onChange={(e) => setNewTicker(e.target.value.toUpperCase())} className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white font-mono" placeholder="BTCUSDT" />
+                   <input type="text" value={newTicker} onChange={(e) => setNewTicker(e.target.value.toUpperCase())} className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono" placeholder="BTCUSDT" />
                  </div>
                  <div>
                    <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Side</label>
-                   <select value={newSide} onChange={(e) => setNewSide(e.target.value as any)} className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white font-mono">
+                   <select value={newSide} onChange={(e) => setNewSide(e.target.value as any)} className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono">
                       <option value="BUY">KØB</option>
                       <option value="SELL">SALG</option>
                    </select>
                  </div>
                  <div>
                    <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Pris (USD)</label>
-                   <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white font-mono" placeholder="0.00" />
+                   <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono" placeholder="0.00" />
                  </div>
               </div>
               <div className="mb-4">
                  <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Noter til beslutning</label>
-                 <textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white font-mono resize-none" placeholder="Hvorfor udførte du denne handel?"></textarea>
+                 <textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} rows={3} className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono resize-none" placeholder="Hvorfor udførte du denne handel?"></textarea>
               </div>
               <div className="mb-4">
                  <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Tags</label>

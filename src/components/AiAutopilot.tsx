@@ -206,7 +206,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
     <div className="h-full space-y-6 pb-20">
       <div className="flex flex-col md:flex-row gap-6 h-full">
         <div className="w-full md:w-1/3 flex flex-col gap-6">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-full h-1 ${isActive ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)]' : 'bg-gray-800'}`}></div>
             <h2 className="text-xl font-black italic tracking-tighter uppercase mb-6 flex items-center justify-between">
               <span className="text-gray-100">Trade Copilot</span>
@@ -304,7 +304,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
             </div>
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl flex-1">
+          <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl flex-1">
              <h3 className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4 flex items-center gap-2">
                 <Settings className="size-4" /> Copilot Parametre
              </h3>
@@ -368,7 +368,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
         </div>
 
         <div className="w-full md:w-2/3 flex flex-col gap-6">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl min-h-[220px] flex flex-col relative overflow-hidden">
+          <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl min-h-[220px] flex flex-col relative overflow-hidden">
              <h3 className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4 flex items-center gap-2 relative z-20">
                 <Shield className="size-4" /> AI Trade Proposals
              </h3>
@@ -391,7 +391,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.95 }}
-                          className="bg-gray-950 border border-gray-800 rounded-xl p-3 flex items-center justify-between"
+                          className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl p-3 flex items-center justify-between"
                         >
                            <div className="flex items-center gap-4">
                              <div className={`px-2 py-1 rounded text-xs font-bold ${signal.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
@@ -429,7 +429,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
              )}
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl flex-1 flex flex-col">
+          <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl flex-1 flex flex-col">
             <h3 className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4 flex items-center gap-2">
                <Activity className="size-4" /> Operations Log
             </h3>

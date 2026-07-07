@@ -45,7 +45,7 @@ export const TradeVelocityGauge = () => {
   ];
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:scale-[1.01] hover:z-10 group">
+    <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:scale-[1.01] hover:z-10 group">
       <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="flex justify-between items-start mb-2 relative z-10">
         <div>
@@ -55,7 +55,7 @@ export const TradeVelocityGauge = () => {
           </h3>
           <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-wider">Automated executions per hour</p>
         </div>
-        <div className="p-2 bg-gray-900 rounded-lg border border-gray-800 text-gray-400">
+        <div className="p-2 bg-gray-900/40 backdrop-blur-md rounded-lg border-white/10 text-gray-400">
           <Activity className="size-4" />
         </div>
       </div>

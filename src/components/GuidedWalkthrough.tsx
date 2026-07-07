@@ -139,7 +139,7 @@ export function GuidedWalkthrough() {
             <div className="absolute top-0 right-0 p-8 bg-amber-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             
             <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-gray-950 rounded-2xl border border-gray-800">
+              <div className="p-3 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-800">
                 {currentStep.icon}
               </div>
               <button 

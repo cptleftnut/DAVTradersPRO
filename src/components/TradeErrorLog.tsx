@@ -34,7 +34,7 @@ export function TradeErrorLog() {
   }, []);
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col h-full">
+    <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl p-4 flex flex-col h-full">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
            <ShieldAlert className="size-4 text-rose-500" />
@@ -76,7 +76,7 @@ export function TradeErrorLog() {
             ) : (
                <div className="space-y-2">
                   {data.recentErrors.map((err, i) => (
-                     <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-2.5 flex flex-col gap-1.5">
+                     <div key={i} className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg p-2.5 flex flex-col gap-1.5">
                         <div className="flex justify-between items-start">
                            <div className="flex items-center gap-2">
                               <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>

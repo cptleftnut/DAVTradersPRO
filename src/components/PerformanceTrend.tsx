@@ -74,7 +74,7 @@ export const PerformanceTrend: React.FC = () => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-gray-900 border border-gray-800 p-3 rounded-lg shadow-xl">
+        <div className="bg-gray-900/40 backdrop-blur-md border-white/10 p-3 rounded-lg shadow-xl">
           <p className="text-gray-400 text-xs mb-2">{label}</p>
           <div className="space-y-1">
             <p className="text-emerald-400 font-mono text-sm flex items-center gap-2">

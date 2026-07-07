@@ -363,7 +363,7 @@ export function AdminDashboard({ onClose, adminEmail }: AdminDashboardProps) {
                   Realtids terminal output
                 </p>
               </div>
-              <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 h-[600px] overflow-y-auto font-mono text-sm flex flex-col gap-2 relative shadow-inner">
+              <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl p-4 h-[600px] overflow-y-auto font-mono text-sm flex flex-col gap-2 relative shadow-inner">
                 {logs.map((log, i) => (
                   <div
                     key={i}

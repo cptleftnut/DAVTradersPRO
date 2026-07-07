@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<any, any> {
       return (
         <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-rose-400 p-8 font-mono">
           <h1 className="text-xl font-bold mb-4">Something went wrong.</h1>
-          <p className="text-sm bg-gray-900 border border-gray-800 p-4 rounded-lg">
+          <p className="text-sm bg-gray-900/40 backdrop-blur-md border-white/10 p-4 rounded-lg">
             {this.state.error?.message || "Unknown error"}
           </p>
         </div>

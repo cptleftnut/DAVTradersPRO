@@ -273,7 +273,7 @@ export const PortfolioSummary = React.memo( () => {
                  </table>
              </div>
              <PortfolioAllocationChart walletData={walletData} />
-             <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow-lg mt-6">
+             <div className="bg-gray-900/40 backdrop-blur-md border-white/10 p-4 rounded-xl shadow-lg mt-6">
                 <h3 className="text-sm font-medium text-gray-400 mb-4 uppercase tracking-wider">30-Day PnL Trend</h3>
                 <div className="h-48">
                     <ResponsiveContainer width="100%" height="100%">

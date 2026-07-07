@@ -45,7 +45,7 @@ export function TradeDiagnosticModal({ onClose }: { onClose: () => void }) {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-2xl bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        className="w-full max-w-2xl bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
       >
         <div className="flex justify-between items-center p-4 border-b border-gray-800 bg-gray-900/50">
           <div className="flex items-center gap-2 text-rose-400">
@@ -136,7 +136,7 @@ export function TradeDiagnosticModal({ onClose }: { onClose: () => void }) {
               ) : (
                  <div className="space-y-2">
                     {data.recentErrors.map((err, i) => (
-                       <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-start justify-between gap-4">
+                       <div key={i} className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg p-3 flex items-start justify-between gap-4">
                           <div className="flex items-center gap-3">
                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1 shrink-0"></div>
                              <div>

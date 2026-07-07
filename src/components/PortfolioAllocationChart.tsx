@@ -19,7 +19,7 @@ export const PortfolioAllocationChart = ({ walletData }: { walletData: any }) =>
   if (data.length === 0) return <div className="text-gray-400 text-sm">No assets to display</div>;
 
   return (
-    <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow-lg">
+    <div className="bg-gray-900/40 backdrop-blur-md border-white/10 p-4 rounded-xl shadow-lg">
       <h3 className="text-sm font-medium text-gray-400 mb-4 uppercase tracking-wider">Portfolio Allocation</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">

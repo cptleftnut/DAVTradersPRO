@@ -1,5 +1,90 @@
 import React, { useState, useEffect, useRef, FormEvent, DragEvent, useMemo } from 'react';
-import { Lock, Bot, Zap, Play, Square, TrendingUp, TrendingDown, Anchor, Activity, RefreshCw, History, X, Shield, Info, Wallet, Calendar, Bell, Download, Newspaper, Mic, Search, ChevronDown, GitCompare, LineChart, BookOpen, ShieldCheck, Rocket, Globe, Loader2, GripVertical, ChevronLeft, ChevronRight, ChevronUp, LayoutGrid, BrainCircuit, Palette, PieChart as PieChartIcon } from 'lucide-react';
+
+const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTakeProfit, globalStopLoss, onUpdate }: any) => {
+    const asset = pos.assetName || symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
+    const quote = pos.quoteAsset || (symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT'))))));
+    const entryPrice = parseFloat(pos.price || '0');
+    const currentPrice = parseFloat(pos.currentPrice || lastPrice || '0');
+    const simProfitPct = pos.simProfitPct || 0;
+    const allocUsed = pos.actualAlloc || allocation;
+    const rawPnl = allocUsed * (simProfitPct / 100);
+    
+    const [tp, setTp] = React.useState(pos.takeProfit !== undefined ? pos.takeProfit : globalTakeProfit);
+    const [sl, setSl] = React.useState(pos.stopLoss !== undefined ? pos.stopLoss : globalStopLoss);
+    const [isSaving, setIsSaving] = React.useState(false);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        await onUpdate(pos.id, tp, sl);
+        setIsSaving(false);
+    };
+
+    return (
+       <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="mt-3 p-3 bg-cyan-950/20 border border-cyan-800/40 rounded-2xl relative overflow-hidden"
+       >
+          <div className="flex justify-between items-center mb-1.5">
+             <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">{asset}/{quote} Position #{idx + 1}</span>
+             <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold tracking-widest uppercase">{pos.status || 'LIVE'}</span>
+          </div>
+          <div className="space-y-1 font-mono text-[10px] text-gray-300">
+             <div className="flex justify-between">
+                <span className="text-gray-500">Indgang:</span>
+                <span className="text-gray-200">${entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+             </div>
+             <div className="flex justify-between">
+                <span className="text-gray-500">Nuværende:</span>
+                <span className="text-gray-200">
+                   ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+             </div>
+             <div className="flex justify-between pt-1 border-t border-gray-800/40 mt-1 items-center">
+                <span className="text-gray-500">Urealiseret PnL:</span>
+                <span className={`text-[11px] font-bold ${simProfitPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                   {simProfitPct >= 0 ? '+' : ''}
+                   {simProfitPct.toFixed(2)}%
+                   <span className="text-[9px] opacity-80 pl-1 font-normal">
+                      ({rawPnl >= 0 ? '+' : ''}${rawPnl.toFixed(2)})
+                   </span>
+                </span>
+             </div>
+             
+             {/* New TP/SL Controls */}
+             <div className="pt-2 mt-2 border-t border-gray-800/40 grid grid-cols-2 gap-2">
+                <div>
+                   <label className="text-[9px] text-gray-500 block mb-1">Take Profit (%)</label>
+                   <input 
+                      type="number" 
+                      value={tp} 
+                      onChange={(e) => setTp(Number(e.target.value))}
+                      className="w-full bg-gray-900 border border-gray-800 text-emerald-400 rounded p-1 text-xs" 
+                   />
+                </div>
+                <div>
+                   <label className="text-[9px] text-gray-500 block mb-1">Stop Loss (%)</label>
+                   <input 
+                      type="number" 
+                      value={sl} 
+                      onChange={(e) => setSl(Number(e.target.value))}
+                      className="w-full bg-gray-900 border border-gray-800 text-rose-400 rounded p-1 text-xs" 
+                   />
+                </div>
+             </div>
+             <button 
+                onClick={handleSave} 
+                disabled={isSaving || (tp === (pos.takeProfit ?? globalTakeProfit) && sl === (pos.stopLoss ?? globalStopLoss))}
+                className="w-full mt-2 py-1.5 bg-cyan-900/40 hover:bg-cyan-800 text-cyan-300 rounded text-[10px] uppercase font-bold tracking-widest disabled:opacity-50 transition-all"
+             >
+                {isSaving ? 'Gemmer...' : 'Opdater Grænser'}
+             </button>
+          </div>
+       </motion.div>
+    );
+};
+
+import { Sparkles, Lock, Bot, Zap, Play, Square, TrendingUp, TrendingDown, Anchor, Activity, RefreshCw, History, X, Shield, Info, Wallet, Calendar, Bell, Download, Newspaper, Mic, Search, ChevronDown, GitCompare, LineChart, BookOpen, ShieldCheck, Rocket, Globe, Loader2, GripVertical, ChevronLeft, ChevronRight, ChevronUp, LayoutGrid, BrainCircuit, Palette, PieChart as PieChartIcon } from 'lucide-react';
 import { useFirestorePersistence } from '../lib/persistence';
 import { TradeConfirmationModal } from './TradeConfirmationModal';
 import { AiAutopilot } from './AiAutopilot';
@@ -116,6 +201,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     }
     return ['agentControl', 'walletSummary', 'portfolioDistribution', 'orderBook', 'tradeErrorLog', 'realtimeTabs', 'aiPerformance', 'risikostyring', 'maeglerforbindelse'];
   });
+
+
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -252,6 +339,21 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     }
   };
 
+  const handleBackup = async () => {
+    try {
+      await addDoc(collection(db, "backups"), {
+        userId: googleUser?.uid || 'anonymous',
+        data: {
+          lastBackedUp: new Date().toISOString()
+        },
+        createdAt: serverTimestamp()
+      });
+      toast.success("Backup gennemført!");
+    } catch (err) {
+      toast.error("Backup fejlede");
+    }
+  };
+
   
   const handleCopyAddress = () => {
     navigator.clipboard.writeText('TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t');
@@ -306,6 +408,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const [stopLoss, setStopLoss] = useState(5.0);
   const [stopLossType, setStopLossType] = useState<'percentage'|'fixed'>('percentage');
   const [enableAutoStopLoss, setEnableAutoStopLoss] = useState(true);
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
+  const [assistantSuggestion, setAssistantSuggestion] = useState<{takeProfit: number, stopLoss: number, reasoning: string} | null>(null);
   
   // Advanced Risk Management parameters
   const [useTrailingStop, setUseTrailingStop] = useState(false);
@@ -1308,7 +1412,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     if (isBotActive) {
       fetch('/api/bot/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-binance-api-key': localStorage.getItem('user_binance_api_key') || '',
+          'x-binance-api-secret': localStorage.getItem('user_binance_api_secret') || ''
+        },
         body: JSON.stringify({ allocation })
       }).catch(e => console.error("Failed to update allocation:", e));
     }
@@ -1720,7 +1828,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
 
               let posChanged = state.activePositions !== prevActivePosRef.current;
               if (state.lastError && state.lastError !== prevLastErrorRef.current) {
-                 addLog(`Fejl fra trading bot: ${state.lastError}`, 'error');
+                 addLog(`Fejl fra trading bot: ${state.lastError} - Tjek API-nøgler og ordrekrav (min. 10 USDT)`, 'error');
                  prevLastErrorRef.current = state.lastError;
                  // Ensure we show it as toast too if it's new
                  toast.error(`Bot Fejl: ${state.lastError}`);
@@ -1871,6 +1979,10 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
            if (errData.feeRequired) setUnpaidFee(errData.amount);
            addLog(`Bot startup failed: ${errData.error || 'Check API keys in settings'}`, 'error');
            toast.error(`Kunne ikke starte agent: ${errData.error || 'Check API keys in settings'}`);
+           if (isLiveTrading && errData.error && errData.error.includes("BINANCE_API_KEY_MISSING")) {
+                setIsLiveTrading(false);
+                toast.error("Live Trading deaktiveret pga. manglende API nøgler");
+           }
          }
        } catch(e) {
          addLog(`Bot startup failed: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
@@ -1886,10 +1998,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     }
   };
 
-  const toggleTradingMode = (toLive: boolean) => {
+  const toggleTradingMode = async (toLive: boolean) => {
     if (toLive) {
       const hasKeys = localStorage.getItem('user_binance_api_key');
       if (!hasKeys) {
+        toast.error("API nøgler mangler. Åbner Pro modal for konfiguration.");
         setShowProModal(true);
         return;
       }
@@ -1897,6 +2010,28 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     
     setIsLiveTrading(toLive);
     
+    // Update server state immediately
+    try {
+      const response = await fetch('/api/bot/update', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-binance-api-key': localStorage.getItem('user_binance_api_key') || '',
+          'x-binance-api-secret': localStorage.getItem('user_binance_api_secret') || ''
+        },
+        body: JSON.stringify({ isLiveTrading: toLive })
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update trading mode on server");
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+      // Revert state if server update fails
+      setIsLiveTrading(!toLive);
+      return;
+    }
+
     logAuditEvent({
       type: 'config',
       action: toLive ? 'LIVE_TRADING_ENABLED' : 'PAPER_TRADING_ENABLED',
@@ -1938,7 +2073,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         });
         const data = await response.json();
         if (response.ok) {
-            addLog(`${side} order executed for ${symbol} successfully. ${data.isPaper ? '(Paper Trading)' : '(Real Trading)'}`, 'info');
+            addLog(`${side} order executed for ${symbol} successfully. ${data.isPaper ? '(Paper Trading)' : '(Real Trading)'}. API Response: ${JSON.stringify(data)}`, 'info');
             
             logAuditEvent({
               type: 'trade',
@@ -1991,7 +2126,13 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               }));
             }
         } else {
-            addLog(`Trade failed: ${data.error}`, 'error');
+            addLog(`Trade failed for ${symbol}: ${data.error}. Verify requirements: min 10 USDT, valid API keys and pair.`, 'error');
+            toast.error(data.error || "Trade failed");
+            
+            if (isLiveTrading && data.error && (data.error.includes("BINANCE_API_KEY_MISSING") || data.error.includes("Missing Binance API keys"))) {
+                 setIsLiveTrading(false);
+                 toast.error("Live Trading deaktiveret pga. manglende API nøgler");
+            }
             logAuditEvent({
               type: 'error',
               action: `MANUAL_TRADE_FAILED`,
@@ -2031,6 +2172,37 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     if (preset.dcaAllocation !== undefined) setDcaAllocation(preset.dcaAllocation);
   };
 
+  
+  const askStrategyAssistant = async () => {
+    setIsAssistantLoading(true);
+    setAssistantSuggestion(null);
+    try {
+      const klinesRes = await fetch(`/api/binance-proxy/klines?symbol=${symbol}&interval=1h&limit=50`);
+      const klinesData = await klinesRes.json();
+      
+      const res = await fetch('/api/gemini/suggest-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol,
+          currentPrice,
+          klinesData,
+          model: "gemini-3.5-flash"
+        })
+      });
+      
+      if (!res.ok) throw new Error("Failed to get suggestion");
+      const data = await res.json();
+      setAssistantSuggestion(data);
+      addLog(`Gemini foreslog TP: ${data.takeProfit}%, SL: ${data.stopLoss}% for ${symbol}`, 'info');
+    } catch (e: any) {
+      addLog(`Strategy Assistant Error: ${e.message}`, 'error');
+      toast.error("Kunne ikke hente Gemini forslag");
+    } finally {
+      setIsAssistantLoading(false);
+    }
+  };
+
   const handleDeploy = async () => {
     if (allocation < 10) {
         addLog("Minimum order size is 10 USDT.", "error");
@@ -2042,7 +2214,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     try {
       const response = await fetch('/api/bot/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-binance-api-key': localStorage.getItem('user_binance_api_key') || '',
+          'x-binance-api-secret': localStorage.getItem('user_binance_api_secret') || ''
+        },
         body: JSON.stringify({
           symbol,
           allocation,
@@ -2069,7 +2245,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
       } else {
         const err = await response.json().catch(() => ({}));
         addLog(`Synkronisering af konfiguration fejlede: ${err.error || 'Ukendt fejl'}`, "error");
-        toast.error("Kunne ikke implementere konfiguration");
+        toast.error(err.error || "Kunne ikke implementere konfiguration");
+        
+        if (isLiveTrading && err.error && err.error.includes("BINANCE_API_KEY_MISSING")) {
+             setIsLiveTrading(false);
+             toast.error("Live Trading deaktiveret pga. manglende API nøgler");
+        }
       }
     } catch (e: any) {
       addLog(`Fejl ved opdatering af konfiguration: ${e.message}`, "error");
@@ -2404,7 +2585,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
       />
       {/* Dashboard Layout Toolbar */}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-gray-900/40 rounded-2xl border border-gray-850/80 mb-6 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 sm:p-6 bg-gray-900/40 rounded-2xl border border-gray-850/80 mb-6 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
          <div className="flex items-center gap-3">
             <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/20">
                <GripVertical className="size-4 text-amber-500 animate-pulse" />
@@ -2424,7 +2605,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               <Activity className={`size-3 ${apiHealth.status === 'loading' ? 'animate-spin' : ''}`} />
               {apiHealth.status === 'ok' ? 'API: OK' : 
                apiHealth.status === 'loading' ? 'API: Tjekker...' : 
-               'API: Fejl / Mangler'}
+               'API: Afbrudt (Paper Trading Aktiv)'}
                {apiHealth.status === 'invalid' || apiHealth.status === 'missing' ? (
                  <button 
                    onClick={() => setShowProModal(true)} 
@@ -2434,12 +2615,19 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                  </button>
                ) : null}
             </div>
-            <button 
-               onClick={resetWidgetOrder}
-               className="px-4 py-2 bg-gray-950 hover:bg-gray-900 text-gray-400 hover:text-white border border-gray-800 rounded-xl text-xs transition-colors shadow-md"
-            >
-               Nulstil Layout
-            </button>
+             <button 
+                onClick={handleBackup}
+                className="px-4 py-2 bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-500 hover:text-emerald-400 border border-emerald-900/50 rounded-xl text-xs transition-colors shadow-md flex items-center gap-2"
+             >
+                <Download className="size-3" />
+                Backup
+             </button>
+             <button 
+                onClick={resetWidgetOrder}
+                className="px-4 py-2 bg-gray-950 hover:bg-gray-900 text-gray-400 hover:text-white border border-gray-800 rounded-xl text-xs transition-colors shadow-md"
+             >
+                Nulstil Layout
+             </button>
          </div>
       </div>
 
@@ -2819,7 +3007,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.15 }}
-                          className="absolute z-50 w-full mt-2 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl overflow-hidden backdrop-blur-md"
+                          className="absolute z-50 w-full mt-2 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl overflow-hidden backdrop-blur-md"
                       >
                           <div className="p-3 border-b border-gray-800 flex items-center gap-2 bg-gray-900/50">
                              <Search className="size-4 text-gray-500" />
@@ -2915,8 +3103,51 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-500 font-mono text-xs">-</span>
                     <input type="number" value={stopLoss} onChange={(e) => setStopLoss(Number(e.target.value))} className="w-full bg-gray-950 border border-gray-800 text-rose-500 rounded-xl py-3 pl-7 pr-7 focus:ring-2 focus:ring-amber-500 font-mono text-sm" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 font-mono text-xs">{stopLossType === 'percentage' ? '%' : '$'}</span>
+
                   </div>
                 </div>
+                <div className="mt-3">
+                  <button 
+                    onClick={askStrategyAssistant}
+                    disabled={isAssistantLoading}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-800/50 text-indigo-400 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                  >
+                    {isAssistantLoading ? (
+                      <span className="animate-pulse">Analyserer marked...</span>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Spørg Gemini Strategy Assistant
+                      </>
+                    )}
+                  </button>
+                  
+                  {assistantSuggestion && (
+                    <div className="mt-2 p-3 bg-indigo-950/20 border border-indigo-900/40 rounded-xl">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">Gemini Forslag</span>
+                        <button 
+                          onClick={() => {
+                            setTakeProfit(assistantSuggestion.takeProfit);
+                            setStopLoss(assistantSuggestion.stopLoss);
+                            addLog("Gemini forslag anvendt.", "info");
+                          }}
+                          className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[9px] font-bold uppercase transition-colors"
+                        >
+                          Anvend
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-gray-300 leading-relaxed mb-2 font-mono">
+                        {assistantSuggestion.reasoning}
+                      </p>
+                      <div className="flex gap-3 text-[10px] font-mono">
+                        <span className="text-emerald-400">TP: {assistantSuggestion.takeProfit}%</span>
+                        <span className="text-rose-400">SL: {assistantSuggestion.stopLoss}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Avanceret Risikostyring</label>
@@ -4825,50 +5056,42 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                  <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Aktive Positioner</p>
                  <p className="text-xl font-mono text-cyan-400">{activePositions}</p>
                   
-                  {activePositions > 0 && activePositionsList.map((pos: any, idx: number) => {
-                    const asset = pos.assetName || symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
-                    const quote = pos.quoteAsset || (symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT'))))));
-                    const entryPrice = parseFloat(pos.price || '0');
-                    const currentPrice = parseFloat(pos.currentPrice || lastPriceRef.current || '0');
-                    const simProfitPct = pos.simProfitPct || 0;
-                    const allocUsed = pos.actualAlloc || allocation;
-                    const rawPnl = allocUsed * (simProfitPct / 100);
-
-                    return (
-                       <motion.div 
-                          key={pos.id || idx}
-                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          className="mt-3 p-3 bg-cyan-950/20 border border-cyan-800/40 rounded-2xl relative overflow-hidden"
-                       >
-                          <div className="flex justify-between items-center mb-1.5">
-                             <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">{asset}/{quote} Position #{idx + 1}</span>
-                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold tracking-widest uppercase">{pos.status || 'LIVE'}</span>
-                          </div>
-                          <div className="space-y-1 font-mono text-[10px] text-gray-300">
-                             <div className="flex justify-between">
-                                <span className="text-gray-500">Indgang:</span>
-                                <span className="text-gray-200">${entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                             </div>
-                             <div className="flex justify-between">
-                                <span className="text-gray-500">Nuværende:</span>
-                                <span className="text-gray-200">
-                                   ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </span>
-                             </div>
-                             <div className="flex justify-between pt-1 border-t border-gray-800/40 mt-1 items-center">
-                                <span className="text-gray-500">Urealiseret PnL:</span>
-                                <span className={`text-[11px] font-bold ${simProfitPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                   {simProfitPct >= 0 ? '+' : ''}
-                                   {simProfitPct.toFixed(2)}%
-                                   <span className="text-[9px] opacity-80 pl-1 font-normal">
-                                      ({rawPnl >= 0 ? '+' : ''}${rawPnl.toFixed(2)})
-                                   </span>
-                                </span>
-                             </div>
-                          </div>
-                       </motion.div>
-                    )                  })}
+                  {activePositions > 0 && activePositionsList.map((pos: any, idx: number) => (
+                      <ActivePositionCard 
+                         key={pos.id || idx}
+                         pos={pos}
+                         idx={idx}
+                         symbol={symbol}
+                         allocation={allocation}
+                         lastPrice={lastPriceRef.current}
+                         globalTakeProfit={takeProfit}
+                         globalStopLoss={stopLoss}
+                         onUpdate={async (id: string, tp: number, sl: number) => {
+                             try {
+                                 const res = await fetch('/api/bot/position/update', {
+                                     method: 'POST',
+                                     headers: { 'Content-Type': 'application/json' },
+                                     body: JSON.stringify({ id, takeProfit: tp, stopLoss: sl })
+                                 });
+                                 if (res.ok) {
+                                     toast.success("Position opdateret!");
+                                     // Trigger a state fetch to update the parent list
+                                     fetch('/api/bot/state')
+                                        .then(r => r.json())
+                                        .then(state => {
+                                            if (state.activePositionsList) {
+                                                setActivePositionsList(state.activePositionsList);
+                                            }
+                                        });
+                                 } else {
+                                     toast.error("Fejl ved opdatering af position");
+                                 }
+                             } catch (e) {
+                                 toast.error("Netværksfejl");
+                             }
+                         }}
+                      />
+                  ))}
               </div>
               <div className="h-px w-full bg-gray-800 my-4"></div>
               <div>
@@ -5033,7 +5256,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
              </div>
           </div>
            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Mæglerforbindelse</h4>
-           <div className="p-4 bg-gray-950 rounded-2xl border border-emerald-900/30 flex items-center justify-between mb-3 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+           <div className="p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-emerald-900/30 flex items-center justify-between mb-3 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
               <div className="flex items-center gap-3">
                  <div className="size-8 bg-amber-500/20 text-amber-500 rounded-lg flex items-center justify-center border border-amber-500/30">
                     <Anchor className="size-4" />
@@ -5146,15 +5369,15 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
             <p className="text-xs text-gray-500 mb-6 uppercase tracking-widest">Bot paused manually</p>
             
             <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-gray-950 rounded-xl border border-gray-800">
+              <div className="flex justify-between items-center p-3 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-800">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Duration</span>
                 <span className="font-mono text-sm text-cyan-400">{sessionSummaryData.duration}</span>
               </div>
-              <div className="flex justify-between items-center p-3 bg-gray-950 rounded-xl border border-gray-800">
+              <div className="flex justify-between items-center p-3 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-800">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Trades</span>
                 <span className="font-mono text-sm text-white">{sessionSummaryData.trades}</span>
               </div>
-              <div className="flex justify-between items-center p-3 bg-gray-950 rounded-xl border border-gray-800">
+              <div className="flex justify-between items-center p-3 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-800">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Win Rate</span>
                 <span className="font-mono text-sm text-amber-500">{sessionSummaryData.winRate.toFixed(1)}%</span>
               </div>
@@ -5434,7 +5657,7 @@ ${activeSummaryText}
               </div>
 
               {/* Inner Navigation Tabs */}
-              <div className="grid grid-cols-3 gap-2 mb-4 p-1 bg-gray-950 rounded-xl border border-gray-800/80 shrink-0">
+              <div className="grid grid-cols-3 gap-2 mb-4 p-1 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-800/80 shrink-0">
                 <button
                   onClick={() => setSummaryMode('current')}
                   className={`py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${summaryMode === 'current' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-900'}`}
@@ -5765,7 +5988,7 @@ ${activeSummaryText}
                             </div>
                           </div>
 
-                          <div className="p-4 bg-gray-950 rounded-xl border border-gray-800 max-h-[260px] overflow-y-auto custom-scrollbar">
+                          <div className="p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-800 max-h-[260px] overflow-y-auto custom-scrollbar">
                             <p className="font-mono text-xs text-gray-300 whitespace-pre-line leading-relaxed">
                               {selectedHistoricalSummary.summaryText}
                             </p>
@@ -5795,7 +6018,7 @@ ${activeSummaryText}
                     </div>
 
                     {/* Chat Bubble History Area */}
-                    <div className="flex-1 min-h-[220px] max-h-[300px] border border-gray-800 bg-gray-950 rounded-2xl p-4 overflow-y-auto custom-scrollbar flex flex-col gap-3">
+                    <div className="flex-1 min-h-[220px] max-h-[300px] border border-gray-800 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl p-4 overflow-y-auto custom-scrollbar flex flex-col gap-3">
                       {chatHistory.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-center text-gray-500 m-auto">
                           <Bot className="size-10 text-gray-700 mb-2" />

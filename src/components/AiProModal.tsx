@@ -11,7 +11,7 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
   const [showConfig, setShowConfig] = useState(false);
   const [apiKey, setApiKey] = useState(localStorage.getItem('user_binance_api_key') || '');
   const [apiSecret, setApiSecret] = useState(localStorage.getItem('user_binance_api_secret') || '');
-  const [isProcessingStripe, setIsProcessingStripe] = useState(false);
+  const [isProcessingBinance, setIsProcessingBinance] = useState(false);
 
   const toggleFaq = (idx: number) => {
     setOpenFaq(openFaq === idx ? null : idx);
@@ -62,11 +62,11 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
       }
     }
     
-    setIsProcessingStripe(true);
-    // Simulate Stripe Checkout Redirect
+    setIsProcessingBinance(true);
+    // Simulate Binance Pay Redirect
     setTimeout(() => {
-      setIsProcessingStripe(false);
-      alert("Betaling godkendt via Stripe. Dine API-nøgler er gemt lokalt og du har nu fuld adgang.");
+      setIsProcessingBinance(false);
+      alert("Betaling godkendt via Binance. Dine API-nøgler er gemt lokalt og du har nu fuld adgang.");
       onClose();
       // Reload page or force a check of health
       window.dispatchEvent(new Event('api_keys_updated'));
@@ -129,7 +129,7 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
                     type="text"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-800 rounded-2xl py-3 px-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
+                    className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
                     placeholder="Din API nøgle..."
                   />
                 </div>
@@ -139,7 +139,7 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
                     type="password"
                     value={apiSecret}
                     onChange={(e) => setApiSecret(e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-800 rounded-2xl py-3 px-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
+                    className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
                     placeholder="Din API secret..."
                   />
                 </div>
@@ -148,13 +148,13 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
               <div className="mt-8 flex flex-col gap-3">
                 <button 
                   onClick={handleSaveAndPurchase}
-                  disabled={isProcessingStripe}
+                  disabled={isProcessingBinance}
                   className="w-full py-4 rounded-xl font-bold bg-[#fcd535] hover:bg-[#e6c12d] text-gray-900 text-base transition-all flex items-center justify-center gap-2"
                 >
-                  {isProcessingStripe ? (
+                  {isProcessingBinance ? (
                     <>
                       <Loader2 className="size-5 animate-spin" />
-                      Omdirigerer til Stripe...
+                      Omdirigerer til Binance...
                     </>
                   ) : (
                     <>

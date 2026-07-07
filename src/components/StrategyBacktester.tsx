@@ -169,20 +169,20 @@ export function StrategyBacktester({ currentStrategy, defaultTicker = "BTCUSDT" 
               type="text" 
               value={ticker} 
               onChange={(e) => setTicker(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
-              className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs font-mono text-white max-w-[100px]"
+              className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-lg px-3 py-1.5 text-xs font-mono text-white max-w-[100px]"
               placeholder="BTCUSDT"
            />
            <select 
               value={strategy}
               onChange={(e) => setStrategy(e.target.value)}
-              className="bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-xs text-white truncate max-w-[150px]"
+              className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-lg px-2 py-1.5 text-xs text-white truncate max-w-[150px]"
            >
               {STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}
            </select>
            <select 
               value={interval}
               onChange={(e) => setInterval(e.target.value)}
-              className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-300 w-[80px]"
+              className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-300 w-[80px]"
            >
               <option value="1h">1 Time</option>
               <option value="4h">4 Timer</option>

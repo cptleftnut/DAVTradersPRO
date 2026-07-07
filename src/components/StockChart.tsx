@@ -1583,7 +1583,7 @@ export const StockChart = React.memo(function StockChart({
           )}
 
           {onTimeframeChange && (
-            <div className="flex bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+            <div className="flex bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg overflow-hidden">
               {["5m", "1h", "4h", "1D", "1W", "1M"].map((tf) => (
                 <button
                   key={tf}
@@ -1625,7 +1625,7 @@ export const StockChart = React.memo(function StockChart({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full mt-2 w-56 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-20 overflow-hidden"
+                  className="absolute right-0 top-full mt-2 w-56 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-20 overflow-hidden"
                 >
                   <div className="p-3 border-b border-gray-800">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">

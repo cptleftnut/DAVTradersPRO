@@ -40,7 +40,7 @@ export function SentimentGauge({ score }: SentimentGaugeProps) {
            </span>
            <div className="group relative inline-block">
               <Info className="size-3 text-gray-500 hover:text-white cursor-help transition-colors" />
-              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden w-48 p-2 text-[10px] text-gray-300 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-20 group-hover:block normal-case tracking-normal font-normal">
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden w-48 p-2 text-[10px] text-gray-300 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg shadow-xl z-20 group-hover:block normal-case tracking-normal font-normal">
                 En samlet score baseret på nyheder, sociale medier og tekniske momentum-indikatorer.
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 border-b border-r border-gray-700 rotate-45"></div>
               </div>

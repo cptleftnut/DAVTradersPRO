@@ -167,7 +167,7 @@ export function TickerCompare({ primaryTicker = "BTC" }: { primaryTicker?: strin
       {results.length > 0 && (
           <div className="mt-8">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Uncertainty & Accuracy History</h4>
-            <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 h-64 mb-4">
+            <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl p-4 h-64 mb-4">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={
                   results[0].maeHistory.map((_: any, i: number) => ({
@@ -200,7 +200,7 @@ export function TickerCompare({ primaryTicker = "BTC" }: { primaryTicker?: strin
             </div>
 
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Leaderboard (MAE)</h4>
-            <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden">
+            <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl overflow-hidden">
                 <table className="w-full text-left text-xs font-mono">
                     <thead className="bg-gray-900 text-gray-400 uppercase">
                         <tr>
@@ -244,7 +244,7 @@ export function TickerCompare({ primaryTicker = "BTC" }: { primaryTicker?: strin
       {results.length > 1 && (
         <div className="mt-8">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Correlation Matrix</h4>
-            <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+            <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl p-4">
                 <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${results.length + 1}, minmax(0, 1fr))` }}>
                     <div /> {/* Top left corner */}
                     {results.map(r => <div key={r.modelType} className="text-[10px] text-gray-500 font-mono text-center uppercase">{r.modelType}</div>)}

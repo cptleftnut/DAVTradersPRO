@@ -39,7 +39,7 @@ export const GeminiChat: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 h-96 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl flex flex-col z-50">
+        <div className="fixed bottom-24 right-6 w-80 h-96 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl shadow-2xl flex flex-col z-50">
           <div className="p-4 border-b border-gray-700 flex justify-between items-center">
             <h3 className="font-bold text-white">Market Advisor</h3>
             <button onClick={() => setIsOpen(false)}><X className="size-5 text-gray-400" /></button>

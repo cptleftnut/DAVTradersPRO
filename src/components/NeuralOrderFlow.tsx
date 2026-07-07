@@ -27,7 +27,7 @@ export const NeuralOrderFlow = React.memo(function NeuralOrderFlow() {
   }, []);
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden h-[400px]">
+    <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden h-[400px]">
        <div className="absolute top-0 right-0 p-4 z-10 flex gap-2">
          <span className="flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
            <Activity className="size-3" /> Live Tape

@@ -215,7 +215,7 @@ export function AssetAllocationChart({ walletData, onAssetClick }: { walletData?
 
        {isConfigOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-             <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+             <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
                 <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                    <h3 className="text-white font-bold tracking-tight">Target Allocations</h3>
                    <button onClick={() => setIsConfigOpen(false)} className="text-gray-400 hover:text-white">

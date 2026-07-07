@@ -164,7 +164,7 @@ export const RebalanceSuggestion: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden p-4 transition-all duration-300 hover:scale-[1.01] hover:z-10 relative">
+    <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl overflow-hidden p-4 transition-all duration-300 hover:scale-[1.01] hover:z-10 relative">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-white flex items-center gap-2">
           <Scale className="size-4 text-emerald-400" /> Rebalance Suggestion

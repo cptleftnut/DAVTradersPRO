@@ -194,17 +194,17 @@ export function getAdvancedSections() {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col items-center text-center gap-2">
+            <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-xl p-4 flex flex-col items-center text-center gap-2">
               <Activity className="size-6 text-cyan-400" />
               <strong className="text-xs text-gray-200">Pris Tripping</strong>
               <p className="text-[10px] text-gray-400">Konfigurer alarmer % over eller under prisen markant. Det trigges umiddelbart af WebSockets.</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col items-center text-center gap-2">
+            <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-xl p-4 flex flex-col items-center text-center gap-2">
               <AlertTriangle className="size-6 text-amber-500" />
               <strong className="text-xs text-gray-200">Browser Noter</strong>
               <p className="text-[10px] text-gray-400">Selv når dit faneblad er gemt væk, kaster browseren native macOS/Windows push-beskeder om ordrer.</p>
             </div>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col items-center text-center gap-2">
+            <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-xl p-4 flex flex-col items-center text-center gap-2">
               <Globe className="size-6 text-purple-400" />
               <strong className="text-xs text-gray-200">AI Voice (TTS)</strong>
               <p className="text-[10px] text-gray-400">Få platformen til verbalt at fortælle dig om trends og udførte handler mens du laver noget andet.</p>

@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AuthScreen } from "./components/AuthScreen";
 import { SalesPage } from "./components/SalesPage";
 import { BinanceTradingPanel } from "./components/BinanceTradingPanel";
+import { TradeDiagnostics } from "./components/TradeDiagnostics";
+import { BacktestWidget } from "./components/BacktestWidget";
+import { SessionSummaryWidget } from "./components/SessionSummaryWidget";
 import { OnboardingTour } from "./components/OnboardingTour";
 import { OrderBook } from "./components/OrderBook";
 import { PortfolioDistribution } from "./components/PortfolioDistribution";
@@ -79,7 +82,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const { themeMode, theme, setThemeMode, toggleTheme } = useTheme();
-  const DEFAULT_ITEMS = ['SystemHealthMonitor', 'AuditTrail', 'DailyPerformanceMetric', 'CumulativeProfitChart', 'MarketSentiment', 'TradeVelocityGauge', 'PriceAlerts', 'RebalanceSuggestion', 'PerformanceTrend', 'PortfolioDistribution', 'OrderBook', 'TradeHistoryTable', 'FeeAnalysisChart'];
+  const DEFAULT_ITEMS = ['SessionSummaryWidget', 'BacktestWidget', 'TradeDiagnostics', 'SystemHealthMonitor', 'AuditTrail', 'DailyPerformanceMetric', 'CumulativeProfitChart', 'MarketSentiment', 'TradeVelocityGauge', 'PriceAlerts', 'RebalanceSuggestion', 'PerformanceTrend', 'PortfolioDistribution', 'OrderBook', 'TradeHistoryTable', 'FeeAnalysisChart'];
   const [items, setItems] = useState(DEFAULT_ITEMS);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
@@ -88,6 +91,7 @@ export default function App() {
     return localStorage.getItem('dashboard_compact_view') !== 'false';
   });
   const [expandedWidgetId, setExpandedWidgetId] = useState<string | null>(null);
+  const [tradeLogs, setTradeLogs] = useState<{time: string, msg: string, type: 'info'|'warn'|'error'}[]>([]);
 
   const compactWidgetsData: Record<string, { title: string; icon: string; val: string; sub: string; color: string; badge?: string }> = {
     SystemHealthMonitor: {
@@ -228,12 +232,13 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const addLog = (msg: string, type: 'info' | 'warn' | 'error' = 'info') => {
+  const addLog = useCallback((msg: string, type: 'info' | 'warn' | 'error' = 'info') => {
     if (String(msg).includes('Failed to fetch')) return;
+    setTradeLogs(prev => [{ time: new Date().toISOString(), msg, type }, ...prev].slice(0, 100));
     if (type === 'error') toast.error(msg);
     else if (type === 'warn') toast.warning(msg);
     else toast.info(msg);
-  };
+  }, []);
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -278,7 +283,10 @@ export default function App() {
     RebalanceSuggestion: <RebalanceSuggestion />,
     PriceAlerts: <PriceAlerts />,
     TradeVelocityGauge: <TradeVelocityGauge />,
-    MarketSentiment: <FearAndGreedIndex />
+    MarketSentiment: <FearAndGreedIndex />,
+    TradeDiagnostics: <TradeDiagnostics logs={[]} />,
+    BacktestWidget: <BacktestWidget />,
+    SessionSummaryWidget: <SessionSummaryWidget />
   };
 
   return (
@@ -287,7 +295,7 @@ export default function App() {
         onClick={() => {
           window.dispatchEvent(new CustomEvent('start-onboarding-tour'));
         }}
-        className="fixed top-4 right-40 z-[100] p-2 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider px-3 cursor-pointer shadow-md hover:border-gray-700 hover:bg-gray-800 animate-fade-in"
+        className="fixed top-4 right-40 z-[100] p-2 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg text-gray-400 hover:text-white flex items-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider px-3 cursor-pointer shadow-md hover:border-gray-700 hover:bg-gray-800 animate-fade-in"
         title="Start Rundvisning"
       >
         <Sparkles className="size-4 text-amber-400" />
@@ -295,7 +303,7 @@ export default function App() {
       </button>
       <button 
         onClick={() => setItems(DEFAULT_ITEMS)}
-        className="fixed top-4 right-28 z-[100] p-2 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white"
+        className="fixed top-4 right-28 z-[100] p-2 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg text-gray-400 hover:text-white"
         title="Reset Layout"
       >
         <RotateCcw className="size-5" />
@@ -304,7 +312,7 @@ export default function App() {
       <div className="fixed top-4 right-4 z-[100]">
         <button 
           onClick={() => setShowThemeMenu(!showThemeMenu)}
-          className="p-2 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:border-gray-700"
+          className="p-2 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg text-gray-400 hover:text-white flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:border-gray-700"
           title={`Tema: ${themeMode === 'system' ? 'System Standard' : themeMode === 'light' ? 'Lyst' : 'Mørkt'}`}
         >
           {themeMode === 'system' && <Monitor className="size-5 text-amber-500" />}
@@ -316,7 +324,7 @@ export default function App() {
         {showThemeMenu && (
           <>
             <div className="fixed inset-0 z-[90]" onClick={() => setShowThemeMenu(false)} />
-            <div className="absolute right-0 mt-2 w-44 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl p-1 z-[100] animate-in fade-in slide-in-from-top-2 duration-155">
+            <div className="absolute right-0 mt-2 w-44 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl p-1 z-[100] animate-in fade-in slide-in-from-top-2 duration-155">
               <button
                 onClick={() => {
                   setThemeMode('system');
@@ -445,7 +453,7 @@ export default function App() {
 
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-xs font-bold text-gray-300 hover:bg-gray-800 transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg text-xs font-bold text-gray-300 hover:bg-gray-800 transition-colors cursor-pointer"
             >
               {isSidebarOpen ? <X className="size-4" /> : <Menu className="size-4" />}
               {isSidebarOpen ? 'Skjul Widgets' : 'Vis Widgets'}

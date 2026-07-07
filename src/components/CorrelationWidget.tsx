@@ -85,7 +85,7 @@ export function CorrelationWidget({ ticker, data }: CorrelationWidgetProps) {
   if (!benchmarkData || benchmarkData.length === 0) return null;
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden mt-4">
+    <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl overflow-hidden mt-4">
         <div className="p-3 border-b border-gray-800 bg-gray-950 flex items-center justify-between">
             <h4 className="text-xs font-bold text-gray-300 font-mono tracking-widest uppercase">
                 14-Day Benchmark Correlation

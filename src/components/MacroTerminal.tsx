@@ -17,7 +17,7 @@ export const MacroTerminal = React.memo(function MacroTerminal() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         {/* Macro State Card */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+        <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-2">
             <Globe className="size-4 text-indigo-400" /> Global Macro State
@@ -39,7 +39,7 @@ export const MacroTerminal = React.memo(function MacroTerminal() {
         </div>
 
         {/* AI Correlation Matrix Card */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+        <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-2">
             <Cpu className="size-4 text-amber-400" /> AI Correlation Engine
@@ -55,7 +55,7 @@ export const MacroTerminal = React.memo(function MacroTerminal() {
         </div>
 
         {/* Institutional Flow Card */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+        <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
             <AlertTriangle className="size-4 text-rose-400" /> Institutional Setup
           </h3>
@@ -70,7 +70,7 @@ export const MacroTerminal = React.memo(function MacroTerminal() {
 
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden min-h-[300px]">
+      <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl p-6 shadow-xl relative overflow-hidden min-h-[300px]">
         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-2">
           <ShieldAlert className="size-4 text-cyan-400" /> Market Anomalies Detected (Real-Time)
         </h3>

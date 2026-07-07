@@ -80,7 +80,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 pl-12 pr-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
+                className="w-full bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl py-3 pl-12 pr-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
                 placeholder="din@email.com"
               />
             </div>
@@ -95,7 +95,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 pl-12 pr-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
+                className="w-full bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl py-3 pl-12 pr-4 text-sm text-white focus:border-amber-500 outline-none transition-all placeholder:text-gray-700"
                 placeholder="••••••••"
               />
             </div>

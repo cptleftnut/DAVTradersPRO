@@ -55,7 +55,7 @@ export function SentimentHistoryChart({ history }: SentimentHistoryChartProps) {
             AI Sentiment Tracker
           </h2>
         </div>
-        <div className="flex bg-gray-950 rounded-lg p-1 border border-gray-800">
+        <div className="flex bg-gray-900/20 backdrop-blur-md border-white/5 rounded-lg p-1 border border-gray-800">
           <button 
             onClick={() => setView('line')}
             className={`p-1.5 rounded-md transition-colors ${view === 'line' ? 'bg-gray-800 text-amber-500' : 'text-gray-500 hover:text-gray-300'}`}
@@ -147,7 +147,7 @@ export function SentimentHistoryChart({ history }: SentimentHistoryChartProps) {
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md transition-all duration-300 ${getHeatmapColor(day.score)} ${day.isToday ? 'ring-2 ring-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)]' : 'hover:scale-110'}`}></div>
                     
                     {/* Tooltip */}
-                    <div className="absolute bottom-full mb-2 hidden w-max p-2 text-[10px] text-gray-300 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-20 group-hover:block normal-case tracking-normal font-normal">
+                    <div className="absolute bottom-full mb-2 hidden w-max p-2 text-[10px] text-gray-300 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg shadow-xl z-20 group-hover:block normal-case tracking-normal font-normal">
                       <div className="font-bold text-white">{day.date}</div>
                       <div>Sentiment: {day.score}</div>
                       <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 border-b border-r border-gray-700 rotate-45"></div>

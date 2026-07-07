@@ -1,5 +1,12 @@
 {
   "collections": {
+    "backups": {
+      "fields": {
+        "userId": "string",
+        "data": "map",
+        "createdAt": "timestamp"
+      }
+    },
     "systemState": {
       "docId": "botConfig",
       "fields": {

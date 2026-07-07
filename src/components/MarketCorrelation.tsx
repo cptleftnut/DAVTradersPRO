@@ -433,7 +433,7 @@ export function MarketCorrelation() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-gray-900 border border-gray-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl relative"
+              className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl relative"
               onClick={e => e.stopPropagation()}
             >
                <button 
@@ -457,7 +457,7 @@ export function MarketCorrelation() {
 
                  return (
                    <div className="flex flex-col gap-6">
-                      <div className="flex flex-col items-center justify-center p-6 bg-gray-950 rounded-2xl border border-gray-800 shadow-inner">
+                      <div className="flex flex-col items-center justify-center p-6 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-800 shadow-inner">
                          <span className="text-sm text-gray-500 uppercase tracking-widest font-bold mb-2 text-center">Pearson Correlation<br />({period})</span>
                          <div className={`text-5xl font-mono font-bold tracking-tighter ${getColor(data.value).split(' ')[1] || 'text-white'}`}>
                             {data.value.toFixed(3)}
@@ -466,14 +466,14 @@ export function MarketCorrelation() {
 
                       {zoomedPair.t1 !== zoomedPair.t2 && (
                          <div className="grid grid-cols-2 gap-4">
-                            <div className="flex flex-col items-center justify-center p-4 bg-gray-950 rounded-xl border border-gray-800">
+                            <div className="flex flex-col items-center justify-center p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-800">
                                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Trend</span>
                                <span className={`flex items-center gap-1 text-sm font-bold uppercase tracking-widest ${data.trend === 'up' ? 'text-emerald-400' : data.trend === 'down' ? 'text-rose-400' : 'text-gray-400'}`}>
                                   {data.trend === 'up' ? <ArrowUp className="size-4" strokeWidth={3} /> : data.trend === 'down' ? <ArrowDown className="size-4" strokeWidth={3} /> : <Minus className="size-4" strokeWidth={3} />}
                                   {data.trend === 'up' ? 'Strengthening' : data.trend === 'down' ? 'Weakening' : 'Stable'}
                                </span>
                             </div>
-                            <div className="flex flex-col items-center justify-center p-4 bg-gray-950 rounded-xl border border-gray-800">
+                            <div className="flex flex-col items-center justify-center p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-800">
                                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Significance</span>
                                <span className={`text-sm font-bold uppercase tracking-widest ${data.pValue < 0.05 ? 'text-emerald-400' : 'text-gray-500'}`}>
                                   {data.pValue < 0.001 ? '< 0.001' : data.pValue.toFixed(3)}

@@ -445,7 +445,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
         )}
 
         {/* 1. Total Current Value */}
-        <div className="p-4 bg-gray-950 rounded-2xl border border-gray-850 flex flex-col justify-between">
+        <div className="p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-850 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-1.5 text-gray-500">
             <span className="text-[10px] uppercase font-bold tracking-widest">Nuværende Værdi</span>
             <Coins className="size-4 text-emerald-400" />
@@ -465,7 +465,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
         </div>
 
         {/* 2. Projected Loss */}
-        <div className="p-4 bg-gray-950 rounded-2xl border border-gray-850 flex flex-col justify-between relative overflow-hidden group">
+        <div className="p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-850 flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-center justify-between mb-1.5 text-gray-500">
             <span className="text-[10px] uppercase font-bold tracking-widest">Simuleret Tab</span>
@@ -483,7 +483,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
         </div>
 
         {/* 3. Post-Crash Value */}
-        <div className="p-4 bg-gray-950 rounded-2xl border border-gray-850 flex flex-col justify-between">
+        <div className="p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-850 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-1.5 text-gray-500">
             <span className="text-[10px] uppercase font-bold tracking-widest">Estimeret Bund</span>
             <DollarSign className="size-4 text-amber-400" />
@@ -499,7 +499,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
         </div>
 
         {/* 4. Risk Rating Assessment */}
-        <div className="p-4 bg-gray-950 rounded-2xl border border-gray-850 flex flex-col justify-between relative overflow-hidden">
+        <div className="p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-850 flex flex-col justify-between relative overflow-hidden">
           <div className="flex items-center justify-between mb-1.5 text-gray-500">
             <span className="text-[10px] uppercase font-bold tracking-widest">Sårbarheds Vurdering</span>
             <span className={`w-2.5 h-2.5 rounded-full ${
@@ -599,7 +599,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
             </div>
 
             {/* Volatility Multiplier Setting (Beta Weighting) */}
-            <div className="flex items-center justify-between p-3 bg-gray-950 rounded-xl border border-gray-900 text-xs">
+            <div className="flex items-center justify-between p-3 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl border border-gray-900 text-xs">
               <div>
                 <span className="font-semibold text-gray-300 block">Vægtet Beta-stresstest</span>
                 <span className="text-[9px] text-gray-500 block leading-tight mt-0.5">Skaler tab ud fra historisk volatilitet (f.eks. større fald i altcoins)</span>
@@ -641,7 +641,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
         <div className="lg:col-span-8 flex flex-col gap-4">
           
           {/* Chart Header */}
-          <div className="p-4 bg-gray-950 rounded-2xl border border-gray-850 flex flex-col h-[280px]">
+          <div className="p-4 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-850 flex flex-col h-[280px]">
             <div className="flex justify-between items-center mb-3">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 font-mono">
                 <BarChart4 className="size-3.5 text-rose-500" /> Værdi-fald pr. Aktiv (USD)
@@ -701,7 +701,7 @@ export function PortfolioStressTest({ journalEntries = [] }: PortfolioStressTest
           </div>
 
           {/* Holdings Config Table list */}
-          <div className="bg-gray-950 rounded-2xl border border-gray-850 overflow-hidden flex-1 flex flex-col">
+          <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-850 overflow-hidden flex-1 flex flex-col">
             <div className="p-3 bg-gray-900 border-b border-gray-850 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest">
               <span>Porteføljens sammensætning</span>
               <span>Model: {valuationMode === 'unit' ? '1 Enhed per Købslog' : valuationMode === 'fixed' ? 'Simuleret $1,000 Investering pr. Køb' : 'Manuel mængde'}</span>

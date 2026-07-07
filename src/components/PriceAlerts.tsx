@@ -163,7 +163,7 @@ export const PriceAlerts: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden p-4 transition-all duration-300 hover:scale-[1.01] hover:z-10 relative">
+    <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl overflow-hidden p-4 transition-all duration-300 hover:scale-[1.01] hover:z-10 relative">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-sm font-bold text-white flex items-center gap-2">
           <Bell className="size-4 text-amber-500" /> Price Alerts
@@ -179,12 +179,12 @@ export const PriceAlerts: React.FC = () => {
           value={newSymbol}
           onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
           placeholder="BTCUSDT"
-          className="w-24 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-amber-500 outline-none"
+          className="w-24 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-amber-500 outline-none"
         />
         <select 
           value={newType}
           onChange={(e: any) => setNewType(e.target.value)}
-          className="bg-gray-900 border border-gray-800 rounded-lg px-2 py-2 text-xs text-gray-400 font-bold uppercase outline-none focus:border-amber-500"
+          className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg px-2 py-2 text-xs text-gray-400 font-bold uppercase outline-none focus:border-amber-500"
         >
           <option value="above">≥</option>
           <option value="below">≤</option>
@@ -194,7 +194,7 @@ export const PriceAlerts: React.FC = () => {
           value={newPrice}
           onChange={(e) => setNewPrice(e.target.value)}
           placeholder="Price..."
-          className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-amber-500 outline-none"
+          className="flex-1 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-amber-500 outline-none"
         />
         <button 
           onClick={handleAddAlert}

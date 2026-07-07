@@ -1330,7 +1330,7 @@ export function UserManual({ onClose }: UserManualProps) {
 
   return (
     <div className="fixed inset-0 bg-gray-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-5xl h-[95vh] md:h-[85vh] flex flex-col overflow-hidden shadow-2xl relative">
+      <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl w-full max-w-5xl h-[95vh] md:h-[85vh] flex flex-col overflow-hidden shadow-2xl relative">
         {/* Background Ambient Glows */}
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-amber-500/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
@@ -1428,7 +1428,7 @@ export function UserManual({ onClose }: UserManualProps) {
               placeholder="Søg i håndbogen..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-9 pr-4 py-1.5 text-[10px] sm:text-xs text-gray-200 focus:outline-none focus:border-amber-500/50 transition-colors font-mono"
+              className="w-full bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl pl-9 pr-4 py-1.5 text-[10px] sm:text-xs text-gray-200 focus:outline-none focus:border-amber-500/50 transition-colors font-mono"
             />
           </div>
         </div>
@@ -1444,7 +1444,7 @@ export function UserManual({ onClose }: UserManualProps) {
                 </span>
                 <span className="text-emerald-500 font-bold">{pdfProgress}%</span>
               </div>
-              <div className="w-full h-1.5 bg-gray-950 rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-emerald-500 transition-all duration-300 rounded-full" 
                   style={{ width: `${pdfProgress}%` }}

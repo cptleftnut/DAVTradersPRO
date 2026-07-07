@@ -89,14 +89,14 @@ export function TradingPresetsManager({
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg hover:bg-gray-800 hover:border-amber-500/30 transition-all text-xs font-bold text-gray-300 uppercase tracking-widest"
+        className="flex items-center gap-2 px-3 py-1.5 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg hover:bg-gray-800 hover:border-amber-500/30 transition-all text-xs font-bold text-gray-300 uppercase tracking-widest"
       >
         <FolderOpen className="size-3.5 text-amber-500" />
         Trading Presets
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 right-0 w-80 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-[100] overflow-hidden">
+        <div className="absolute top-full mt-2 right-0 w-80 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-[100] overflow-hidden">
           <div className="p-3 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
             <h4 className="text-xs font-bold text-gray-200 uppercase tracking-widest flex items-center gap-2">
               <Save className="size-3.5 text-amber-500" /> 
@@ -120,7 +120,7 @@ export function TradingPresetsManager({
                        setIsOpen(false);
                        toast.success(`Indlæste "${preset.name}"`);
                      }}
-                     className="group flex items-center justify-between p-2.5 bg-gray-900 border border-gray-800 rounded-lg hover:border-amber-500/50 cursor-pointer transition-colors"
+                     className="group flex items-center justify-between p-2.5 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg hover:border-amber-500/50 cursor-pointer transition-colors"
                    >
                      <div>
                        <p className="text-xs font-bold text-gray-200">{preset.name}</p>
@@ -145,7 +145,7 @@ export function TradingPresetsManager({
               placeholder="Giv ny profil et navn..." 
               value={newPresetName}
               onChange={(e) => setNewPresetName(e.target.value)}
-              className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500"
+              className="flex-1 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500"
             />
             <button 
               onClick={savePreset}

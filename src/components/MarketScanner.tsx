@@ -189,7 +189,7 @@ export const MarketScanner = React.memo(function MarketScanner({ onSelectPair }:
   }, [isTabActive]);
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex flex-col h-full shadow-2xl relative">
+    <div className="bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl overflow-hidden flex flex-col h-full shadow-2xl relative">
        <div className="p-4 md:p-6 border-b border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
              <div className="p-2 bg-purple-500/20 text-purple-400 rounded-xl">
@@ -198,7 +198,7 @@ export const MarketScanner = React.memo(function MarketScanner({ onSelectPair }:
              <div>
                <div className="flex items-center gap-4 mb-1">
                  <h2 className="text-white font-bold tracking-tight text-lg">Market Scanner</h2>
-                 <div className="flex bg-gray-950 rounded-lg p-0.5 border border-gray-800">
+                 <div className="flex bg-gray-900/20 backdrop-blur-md border-white/5 rounded-lg p-0.5 border border-gray-800">
                     <button 
                        onClick={() => setActiveTab('live')}
                        className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${activeTab === 'live' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}

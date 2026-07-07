@@ -227,7 +227,7 @@ export function OnboardingTour({ onSidebarToggle }: OnboardingTourProps) {
             
             {/* Header */}
             <div className="flex justify-between items-start mb-4 relative z-10">
-              <div className="p-3 bg-gray-950 rounded-2xl border border-gray-800 flex items-center justify-center">
+              <div className="p-3 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl border border-gray-800 flex items-center justify-center">
                 {currentStep.icon}
               </div>
               <div className="flex items-center gap-1.5">

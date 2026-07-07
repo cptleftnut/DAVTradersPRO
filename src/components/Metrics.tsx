@@ -203,7 +203,7 @@ export function Metrics({
         </div>
         
         {/* Tooltip */}
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-48 p-3 text-xs text-gray-300 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-48 p-3 text-xs text-gray-300 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
            RSI (Relative Strength Index) måler momentum i prisbevægelser. Over 70 kan indikere overkøbt (salgssignal), under 30 oversolgt (købssignal).
            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-950 border-b border-r border-gray-800 rotate-45"></div>
         </div>
@@ -225,7 +225,7 @@ export function Metrics({
         </div>
         
         {/* Tooltip */}
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-48 p-3 text-xs text-gray-300 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-48 p-3 text-xs text-gray-300 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
            Glidende gennemsnit (og estimeret pris) udglatter prisdata for at identificere den underliggende trend over tid.
            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-950 border-b border-r border-gray-800 rotate-45"></div>
         </div>
@@ -244,7 +244,7 @@ export function Metrics({
         <p className="text-3xl sm:text-4xl font-bold text-emerald-400 font-mono tracking-tighter">Bullish</p>
         
          {/* Tooltip */}
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-48 p-3 text-xs text-gray-300 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-48 p-3 text-xs text-gray-300 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
            Aggregeret analyse af nyheder, sociale medier og tekniske indikatorer ved hjælp af maskinlæring.
            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-950 border-b border-r border-gray-800 rotate-45"></div>
         </div>
@@ -274,7 +274,7 @@ export function Metrics({
         </div>
         
          {/* Tooltip */}
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom">
            Viser procentdelen af lukkede handler (sælg), der har resulteret i et overskud ud fra den gennemsnitlige købspris.
            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-950 border-b border-r border-gray-800 rotate-45"></div>
         </div>
@@ -307,7 +307,7 @@ export function Metrics({
         </div>
         
          {/* Tooltip */}
-        <div className="absolute right-0 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom-right">
+        <div className="absolute right-0 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom-right">
            Aggregeret data fra din Trade Journal. Total investeret i åbne positioner vs. realiseret profit fra lukkede handler.
            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-gray-950 border-b border-r border-gray-800 rotate-45"></div>
         </div>
@@ -345,7 +345,7 @@ export function Metrics({
         </div>
         
         {/* Tooltip */}
-        <div className="absolute right-0 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom-right">
+        <div className="absolute right-0 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom-right">
            Estimeret næste støtte (support) eller modstandsniveau (resistance) baseret på seneste prisudvikling og lokale top/bund niveauer i grafen.
            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-gray-950 border-b border-r border-gray-800 rotate-45"></div>
         </div>
@@ -376,7 +376,7 @@ export function Metrics({
         </div>
         
          {/* Tooltip */}
-        <div className="absolute right-0 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-950 border border-gray-800 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom-right">
+        <div className="absolute right-0 bottom-full mb-3 hidden w-56 p-3 text-xs text-gray-300 bg-gray-900/20 backdrop-blur-md border-white/5 rounded-xl shadow-2xl z-10 group-hover:block transition-all transform origin-bottom-right">
            Måler hvor ofte AI'ens historiske markedsstemning (bullish/bearish) forudså den faktiske prisudvikling korrekt.
            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-gray-950 border-b border-r border-gray-800 rotate-45"></div>
         </div>

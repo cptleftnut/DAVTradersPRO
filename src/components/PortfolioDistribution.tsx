@@ -66,7 +66,7 @@ export function PortfolioDistribution({ walletData, currentPrice = "1.0", active
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-gray-900 border border-gray-800 p-3 rounded-lg shadow-xl">
+        <div className="bg-gray-900/40 backdrop-blur-md border-white/10 p-3 rounded-lg shadow-xl">
           <p className="text-white font-bold">{payload[0].name}</p>
           <p className="text-emerald-400 font-mono">
             ${payload[0].value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

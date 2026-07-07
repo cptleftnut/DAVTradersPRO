@@ -56,14 +56,17 @@ if (!getApps().length) {
 }
 const db = getFirestore(firebaseApp, (firebaseConfig as any).firestoreDatabaseId !== '(default)' ? (firebaseConfig as any).firestoreDatabaseId : undefined);
 
-async function getBinanceCredentials(reqOrUid: any, fallbackHeaders?: any) {
-  // Fallback to headers
+async function getBinanceCredentials(reqOrUid: any, fallbackHeaders?: any, requireLive?: boolean) {
   if (fallbackHeaders) {
     if (fallbackHeaders['x-binance-api-key'] && fallbackHeaders['x-binance-api-secret']) {
        return { apiKey: fallbackHeaders['x-binance-api-key'], apiSecret: fallbackHeaders['x-binance-api-secret'], source: 'headers' };
+    } else if (requireLive) {
+       throw new Error("BINANCE_API_KEY_MISSING: Live Trading requires x-binance-api-key and x-binance-api-secret headers.");
     }
   }
-
+  if (requireLive) {
+      throw new Error("BINANCE_API_KEY_MISSING: Live Trading requires valid Binance API keys.");
+  }
   return {
     apiKey: process.env.BINANCE_API_KEY,
     apiSecret: process.env.BINANCE_API_SECRET,
@@ -370,6 +373,7 @@ let botReconnectTimeout: NodeJS.Timeout | null = null;
 let stockFeedInterval: NodeJS.Timeout | null = null;
 let dcaInterval: NodeJS.Timeout | null = null;
 let recentPriceWindow: number[] = [];
+let lastWindowPushTime = 0;
 
 function evaluateStrategySignal(strategy: string, prices: number[], currentPrice: number): boolean {
   if (prices.length < 5) {
@@ -382,7 +386,7 @@ function evaluateStrategySignal(strategy: string, prices: number[], currentPrice
   if (cleanStrategy === 'Momentum Trading') {
     const lookbackIndex = Math.max(0, prices.length - 10);
     const prevPrice = prices[lookbackIndex];
-    return currentPrice > prevPrice * 1.0005; // 0.05% gain over the last 10 ticks
+    return currentPrice > prevPrice * 1.0001; // 0.01% gain over the last 10 seconds
   }
 
   if (cleanStrategy === 'Mean Reversion') {
@@ -550,7 +554,7 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
 
 
     const client = new Spot(apiKey, apiSecret);
-    botState.lastError = undefined;
+    delete botState.lastError;
     const priceRes = await client.tickerPrice(symbol);
     const currentPrice = parseFloat(priceRes.data.price);
     
@@ -563,11 +567,20 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
     
     // const quantity = (allocation / currentPrice).toFixed(5);
     
+    
+    let formattedAllocation = allocation;
+    if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
+        formattedAllocation = Math.floor(allocation * 100) / 100; // Force 2 decimals max for stablecoins
+    } else {
+        formattedAllocation = Math.floor(allocation * 100000) / 100000;
+    }
+
     let orderData;
     try {
-      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: allocation.toString() });
+      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: formattedAllocation.toString() });
       orderData = orderRes.data;
     } catch (err: any) {
+
       console.error("DEBUG: Binance raw error:", err);
       if (err.response) {
           console.error("DEBUG: Binance response data:", err.response.data);
@@ -622,10 +635,13 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
         const currentP = quote.regularMarketPrice || quote.preMarketPrice || 0;
         
         if (currentP > 0) {
+          if (Date.now() - lastWindowPushTime > 1000) {
           recentPriceWindow.push(currentP);
           if (recentPriceWindow.length > 50) {
             recentPriceWindow.shift();
           }
+          lastWindowPushTime = Date.now();
+        }
           
           // Circuit Breaker Logic
           if (botState.circuitBreakerLimit) {
@@ -732,23 +748,27 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
              const entry = botState.activePositionsList[i];
              const entryExtended = entry as any;
              
-             const currentTargetDropPct = botState.stopLossType === 'fixed' ? (botState.stopLoss / entry.price) * 100 : botState.stopLoss;
+             const posStopLoss = entry.stopLoss !== undefined ? entry.stopLoss : botState.stopLoss;
+             const currentTargetDropPct = botState.stopLossType === 'fixed' ? (posStopLoss / entry.price) * 100 : posStopLoss;
              if (!entryExtended.durationMs) {
                 entryExtended.durationMs = 15000 + Math.random() * 15000;
                 const isWin = Math.random() < 0.75;
-                entryExtended.targetPct = isWin ? botState.takeProfit : -currentTargetDropPct;
+                var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+                entryExtended.targetPct = isWin ? posTakeProfit : -currentTargetDropPct;
                 entryExtended.startTime = now;
              }
              
              const elapsed = now - (entryExtended.startTime || entry.time);
              const progress = Math.min(1, elapsed / entryExtended.durationMs);
-             const wave = Math.sin(now / 1500 + i * 10) * (botState.takeProfit * 0.25);
+             var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+             const wave = Math.sin(now / 1500 + i * 10) * (posTakeProfit * 0.25);
              const simProfitPercent = (progress * entryExtended.targetPct) + (1 - progress) * wave;
              
              entryExtended.simProfitPct = simProfitPercent;
              entryExtended.currentPrice = entry.price * (1 + simProfitPercent / 100);
              
-             const hitSimTakeProfit = simProfitPercent >= botState.takeProfit;
+             var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+             const hitSimTakeProfit = simProfitPercent >= posTakeProfit;
              const hitSimStopLoss = (botState.enableAutoStopLoss !== false) && (simProfitPercent <= -currentTargetDropPct);
              const hitTimeout = elapsed >= entryExtended.durationMs;
              
@@ -824,6 +844,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
         const parsed = JSON.parse(data.toString());
         const currentP = parseFloat(parsed.p);
         const T = parsed.T;
+        let now = Date.now();
         
         // Add current price to the rolling window array
         recentPriceWindow.push(currentP);
@@ -875,8 +896,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
             }
         }
         
-        const now = Date.now();
-        let tradeAllocation = botState.allocation;
+        now = Date.now();
+          let tradeAllocation = botState.allocation;
         if (botState.dynamicSizing && botState.maxRiskPerTrade) {
             const balance = botState.dailyStartPortfolioValue || 1000;
             const riskAmount = balance * (botState.maxRiskPerTrade / 100);
@@ -959,18 +980,21 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
            if (!botState.isLiveTrading) {
               // PAPER TRADING SIMULATION
               const entryExtended = entry as any;
-              const currentTargetDropPct = botState.stopLossType === 'fixed' ? (botState.stopLoss / entry.price) * 100 : botState.stopLoss;
+              const posStopLoss = entry.stopLoss !== undefined ? entry.stopLoss : botState.stopLoss;
+              const currentTargetDropPct = botState.stopLossType === 'fixed' ? (posStopLoss / entry.price) * 100 : posStopLoss;
               if (!entryExtended.durationMs) {
                  entryExtended.durationMs = 15000 + Math.random() * 15000;
                  const isWin = Math.random() < 0.75;
-                 entryExtended.targetPct = isWin ? botState.takeProfit : -currentTargetDropPct;
+                 var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+                 entryExtended.targetPct = isWin ? posTakeProfit : -currentTargetDropPct;
                  entryExtended.startTime = now;
                  entryExtended.maxProfitPct = 0;
               }
               
               const elapsed = now - (entryExtended.startTime || entry.time);
               const progress = Math.min(1, elapsed / entryExtended.durationMs);
-              const wave = Math.sin(now / 1500 + i * 10) * (botState.takeProfit * 0.25);
+              var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+              const wave = Math.sin(now / 1500 + i * 10) * (posTakeProfit * 0.25);
               const simProfitPercent = (progress * entryExtended.targetPct) + (1 - progress) * wave;
               
               entryExtended.simProfitPct = simProfitPercent;
@@ -981,7 +1005,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                 entryExtended.maxProfitPct = Math.max(entryExtended.maxProfitPct || 0, simProfitPercent);
               }
               
-              const hitSimTakeProfit = simProfitPercent >= botState.takeProfit;
+              var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
+              const hitSimTakeProfit = simProfitPercent >= posTakeProfit;
               const isSimTrailingStopTriggered = (botState.enableAutoStopLoss !== false) && botState.useTrailingStop && (simProfitPercent < (entryExtended.maxProfitPct || 0) - currentTargetDropPct);
               const isSimStandardStopTriggered = (botState.enableAutoStopLoss !== false) && !botState.useTrailingStop && (simProfitPercent <= -currentTargetDropPct);
               const isHardStopFloorTriggered = simProfitPercent <= -15.0; // Hard 15% safety limit
@@ -1023,8 +1048,10 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                  entryExtended.maxProfitPct = Math.max(entryExtended.maxProfitPct || 0, profitPercent);
               }
               
-              const hitTakeProfit = profitPercent >= botState.takeProfit;
-              const _targetDropPctExit = botState.stopLossType === 'fixed' ? (botState.stopLoss / entry.price) * 100 : botState.stopLoss;
+              var posTakeProfit = entryExtended.takeProfit !== undefined ? entryExtended.takeProfit : botState.takeProfit;
+              const hitTakeProfit = profitPercent >= posTakeProfit;
+              const posStopLoss = entryExtended.stopLoss !== undefined ? entryExtended.stopLoss : botState.stopLoss;
+              const _targetDropPctExit = botState.stopLossType === 'fixed' ? (posStopLoss / entry.price) * 100 : posStopLoss;
               
               const isTrailingStopTriggered = botState.useTrailingStop && (profitPercent < (entryExtended.maxProfitPct || 0) - _targetDropPctExit);
               const isStandardStopTriggered = !botState.useTrailingStop && (profitPercent <= -_targetDropPctExit);
@@ -1181,7 +1208,7 @@ app.post('/api/bot/start', async (req, res) => {
 
       const { symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation, enableAutoStopLoss } = req.body;
       
-      const creds = await getBinanceCredentials(req, req.headers);
+      const creds = await getBinanceCredentials(req, req.headers, botState.isLiveTrading);
       if (creds.apiKey) botState.userApiKey = creds.apiKey;
       if (creds.apiSecret) botState.userApiSecret = creds.apiSecret;
 
@@ -1209,7 +1236,23 @@ app.post('/api/bot/stop', async (req, res) => {
    }
 });
 
+
+app.post('/api/bot/position/update', async (req, res) => {
+   const { id, takeProfit, stopLoss } = req.body;
+   const pos = botState.activePositionsList.find(p => p.id === id);
+   if (!pos) {
+      return res.status(404).json({ error: "Position not found" });
+   }
+   
+   if (takeProfit !== undefined) pos.takeProfit = takeProfit;
+   if (stopLoss !== undefined) pos.stopLoss = stopLoss;
+   
+   saveBotState();
+   res.json({ success: true, position: pos });
+});
+
 app.post('/api/bot/update', async (req, res) => {
+   try {
    const { symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation } = req.body;
    
    if (symbol !== undefined) botState.symbol = symbol;
@@ -1229,7 +1272,21 @@ app.post('/api/bot/update', async (req, res) => {
    if (enableDCA !== undefined) botState.enableDCA = enableDCA;
    if (dcaIntervalHours !== undefined && typeof dcaIntervalHours === 'number') botState.dcaIntervalHours = dcaIntervalHours;
    if (dcaAllocation !== undefined && typeof dcaAllocation === 'number') botState.dcaAllocation = dcaAllocation;
+
+   // Refetch credentials if live trading is requested or updated
+   if (isLiveTrading !== false && (isLiveTrading === true || botState.isLiveTrading)) {
+      const creds = await getBinanceCredentials(req, req.headers, true);
+      if (creds.apiKey) botState.userApiKey = creds.apiKey;
+      if (creds.apiSecret) botState.userApiSecret = creds.apiSecret;
+   } else {
+      delete botState.userApiKey;
+      delete botState.userApiSecret;
+   }
    
+   } catch (error: any) {
+      return res.status(400).json({ error: error.message });
+   }
+
    if (botState.isActive) {
       await startBot(
          botState.symbol,
@@ -1539,21 +1596,7 @@ app.post('/api/wallet/update', async (req, res) => {
 });
 
 
-app.get('/api/bot/diagnostics', async (req, res) => {
-   const diag = {
-      isActive: botState.isActive,
-      wsStatus: botState.wsStatus,
-      lastError: botState.lastError,
-      lastErrorTime: botState.lastErrorTime,
-      isLiveTrading: botState.isLiveTrading,
-      allocation: botState.allocation,
-      recentErrors: botState.orderHistory.filter(o => o.type.includes('FAILED')),
-      symbol: botState.symbol,
-      reconnectCount: botState.reconnectCount,
-      lastHeartbeat: botState.lastHeartbeat
-   };
-   res.json(diag);
-});
+
 
 
 app.get('/api/bot/diagnostics', async (req, res) => {
@@ -1812,6 +1855,42 @@ app.post("/api/trade-explanation", async (req, res) => {
   }
 });
 
+
+
+app.post("/api/gemini/suggest-strategy", async (req, res) => {
+  try {
+    const { symbol, currentPrice, klinesData, model = "gemini-3.5-flash" } = req.body;
+    const ai = getAiClient();
+    const params = {
+      model: model,
+      input: `You are an AI Trading Assistant. Analyze the recent price action (klines) and current price for ${symbol}.
+      Current Price: ${currentPrice}
+      Recent Data (last 50 hours open/high/low/close): ${JSON.stringify(klinesData.slice(-50))}
+      
+      Based on the volatility and recent price action, suggest optimal parameters for a trading bot.
+      Provide your response strictly as a JSON object with the following keys:
+      - takeProfit: a suggested take profit percentage (e.g., 3.5)
+      - stopLoss: a suggested stop loss percentage (e.g., 1.5)
+      - reasoning: a brief explanation of why these levels make sense given current volatility (max 3 sentences).
+      Do NOT wrap the response in markdown code blocks, just raw JSON.`,
+    };
+    
+    const interaction = await ai.interactions.create(params, { timeout: 30000 });
+    const fullOutput = interaction.steps
+      .filter((step) => step.type === 'model_output')
+      .map((step) => step.content?.find((c) => c.type === 'text')?.text || "")
+      .join("");
+      
+    try {
+      const parsed = JSON.parse(fullOutput.replace(/```json/g, '').replace(/```/g, '').trim());
+      res.json(parsed);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to parse AI response" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post("/api/gemini/analyze-market", async (req, res) => {
   try {
@@ -2428,7 +2507,10 @@ app.post("/api/news", async (req, res) => {
 
 app.get("/api/binance/health", async (req, res) => {
   try {
-    const creds = await getBinanceCredentials(req, req.headers);
+    const creds = await getBinanceCredentials(req, req.headers, botState.isLiveTrading);
+    if (creds.source === 'demo') {
+      return res.json({ status: 'ok', message: 'API-nøgler er gyldige (Demotilstand).', source: 'demo' });
+    }
     if (!creds.apiKey || !creds.apiSecret) {
       return res.json({ status: 'missing', message: 'Ingen Binance API-nøgler fundet.' });
     }
@@ -2510,7 +2592,10 @@ app.post("/api/binance/execute", async (req, res) => {
     const apiSecret = creds.apiSecret;
 
     if (!apiKey || !apiSecret) {
-      return res.status(401).json({ error: 'BINANCE_API_KEY or BINANCE_API_SECRET is not set in environment variables.' });
+      // Fallback to paper trading if no API keys
+      console.log("No API keys found, falling back to paper trading.");
+      const paperRes = await executePaperTrade(symbol, side, allocation);
+      return res.json(paperRes);
     }
 
     const client = new Spot(apiKey, apiSecret);
@@ -2698,7 +2783,10 @@ app.post("/api/trade/execute", async (req, res) => {
       };
     }
 
-    if (isLiveTrading && apiKey && apiSecret) {
+    if (isLiveTrading) {
+      if (!apiKey || !apiSecret) {
+         throw new Error("Missing Binance API keys for Live Trading");
+      }
       // Real trade
       const result = await executeTradeInternal(symbol, side, allocation, apiKey, apiSecret);
       res.json({ success: true, result, smartRoute });

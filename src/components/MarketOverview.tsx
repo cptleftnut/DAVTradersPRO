@@ -156,7 +156,7 @@ export function MarketOverview() {
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow-lg mb-6" id="market-overview-widget">
+    <div className="bg-gray-900/40 backdrop-blur-md border-white/10 p-4 rounded-xl shadow-lg mb-6" id="market-overview-widget">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Market Overview</h2>
         {isFetching && (
@@ -283,7 +283,7 @@ export function MarketOverview() {
                   type="number"
                   value={allocation}
                   onChange={(e) => setAllocation(Math.max(0, Number(e.target.value)))}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-lg py-1.5 pl-7 pr-3 text-xs text-white font-mono font-bold focus:border-amber-500/50 outline-none"
+                  className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg py-1.5 pl-7 pr-3 text-xs text-white font-mono font-bold focus:border-amber-500/50 outline-none"
                   placeholder="Indtast beløb"
                 />
               </div>

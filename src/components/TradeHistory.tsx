@@ -319,7 +319,7 @@ export const TradeHistory = React.memo(function TradeHistory({ journalEntries = 
   }, [journalEntries]);
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden flex flex-col h-full">
+    <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl overflow-hidden flex flex-col h-full">
       <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-900/50 flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2 flex-shrink-0">
@@ -365,7 +365,7 @@ export const TradeHistory = React.memo(function TradeHistory({ journalEntries = 
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full mt-2 w-48 bg-gray-900 border border-gray-800 rounded-xl shadow-xl z-50 overflow-hidden"
+                  className="absolute right-0 top-full mt-2 w-48 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-xl shadow-xl z-50 overflow-hidden"
                 >
                   <div className="p-3 border-b border-gray-800 bg-gray-900/50">
                     <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500">Synlige kolonner</p>

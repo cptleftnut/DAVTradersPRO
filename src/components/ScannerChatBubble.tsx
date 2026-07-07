@@ -97,7 +97,7 @@ export function ScannerChatBubble({ contextData }: { contextData: any }) {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="absolute bottom-6 right-6 w-80 md:w-96 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden"
+            className="absolute bottom-6 right-6 w-80 md:w-96 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden"
             style={{ height: '500px', maxHeight: 'calc(100% - 48px)' }}
           >
             {/* Header */}
@@ -157,7 +157,7 @@ export function ScannerChatBubble({ contextData }: { contextData: any }) {
                     if (e.key === 'Enter') handleSend();
                   }}
                   placeholder="Ask about the current alerts..."
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50 transition-colors"
+                  className="w-full bg-gray-900/40 backdrop-blur-md border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50 transition-colors"
                 />
                 <button
                   onClick={handleSend}

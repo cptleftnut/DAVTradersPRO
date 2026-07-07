@@ -72,7 +72,7 @@ export const TradeHistoryTable: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden p-4 transition-all duration-300 hover:scale-[1.01] hover:z-10 relative">
+    <div className="bg-gray-900/20 backdrop-blur-md border-white/5 rounded-2xl overflow-hidden p-4 transition-all duration-300 hover:scale-[1.01] hover:z-10 relative">
       <h3 className="text-sm font-bold text-white flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
           <History className="size-4 text-cyan-400" /> Seneste Transaktioner
@@ -156,7 +156,7 @@ export const TradeHistoryTable: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
                 disabled={currentPage === 0}
-                className="px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                className="px-3 py-1 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg hover:bg-gray-800 disabled:opacity-50"
               >
                 Forrige
               </button>
@@ -164,7 +164,7 @@ export const TradeHistoryTable: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                 disabled={currentPage === totalPages - 1}
-                className="px-3 py-1 bg-gray-900 border border-gray-800 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                className="px-3 py-1 bg-gray-900/40 backdrop-blur-md border-white/10 rounded-lg hover:bg-gray-800 disabled:opacity-50"
               >
                 Næste
               </button>
