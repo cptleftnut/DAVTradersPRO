@@ -552,22 +552,18 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
       throw new Error('BINANCE_API_KEY or BINANCE_API_SECRET is not set');
     }
 
-
     const client = new Spot(apiKey, apiSecret);
     delete botState.lastError;
     const priceRes = await client.tickerPrice(symbol);
     const currentPrice = parseFloat(priceRes.data.price);
-    
+
     if (allocation < 10) {
-        const errMsg = "Minimum order size on Binance is 10 USDT. Please increase your allocation.";
+        const errMsg = "Minimum order size on Binance is 10 USDT/USDC. Please increase your allocation.";
         botState.lastError = errMsg;
         botState.lastErrorTime = Date.now();
         throw new Error(errMsg);
     }
-    
-    // const quantity = (allocation / currentPrice).toFixed(5);
-    
-    
+
     let formattedAllocation = allocation;
     if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
         formattedAllocation = Math.floor(allocation * 100) / 100; // Force 2 decimals max for stablecoins
@@ -580,7 +576,6 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
       const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: formattedAllocation.toString() });
       orderData = orderRes.data;
     } catch (err: any) {
-
       console.error("DEBUG: Binance raw error:", err);
       if (err.response) {
           console.error("DEBUG: Binance response data:", err.response.data);
@@ -590,15 +585,21 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
       botState.lastErrorTime = Date.now();
       throw new Error(errMsg);
     }
-    if (orderData.fills && orderData.fills.length > 0) {
-      return parseFloat(orderData.fills[0].price);
-    }
-    return currentPrice;
+
+    const fillPrice = orderData.fills && orderData.fills.length > 0 ? parseFloat(orderData.fills[0].price) : currentPrice;
+    const totalCommission = (orderData.fills || []).reduce((sum: number, f: any) => sum + parseFloat(f.commission || '0'), 0);
+
+    return {
+      price: fillPrice,
+      orderId: orderData.orderId ? String(orderData.orderId) : undefined,
+      fee: totalCommission,
+      txHash: orderData.orderId ? String(orderData.orderId) : undefined // Binance spot has no on-chain tx hash; orderId is the canonical reference
+    };
 }
 
 async function startBot(symbol: string, allocation: number, isLiveTrading: boolean, takeProfit: number, stopLoss: number, strategy: string, useTrailingStop?: boolean, dynamicSizing?: boolean, maxRiskPerTrade?: number, diversifySectors?: boolean, stopLossType?: 'percentage' | 'fixed', autoAdjustVolatility?: boolean, useNewsSentiment?: boolean, circuitBreakerLimit?: number, enableDCA?: boolean, dcaIntervalHours?: number, dcaAllocation?: number, enableAutoStopLoss?: boolean) {
   await stopBot();
-  botState.symbol = symbol;
+  botState.symbol = symbol === 'SOLUSDT' ? 'SOLUSDC' : symbol;
   botState.allocation = allocation;
   botState.isLiveTrading = isLiveTrading;
   botState.takeProfit = takeProfit;
@@ -935,8 +936,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                 
                 if (botState.isLiveTrading) {
                    try {
-                      const entryPrice = await executeTradeInternal(botState.symbol, 'BUY', tradeAllocation);
-                      botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: entryPrice || currentP, time: now, status: 'LIVE', maxProfitPct: 0 });
+                      const entryResult = await executeTradeInternal(botState.symbol, 'BUY', tradeAllocation);
+                      botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: entryResult.price || currentP, time: now, status: 'LIVE', maxProfitPct: 0, entryOrderId: entryResult.orderId, entryFee: entryResult.fee });
                       botState.activePositions = botState.activePositionsList.length;
                       saveBotState();
                    } catch (e: any) {
@@ -1061,11 +1062,13 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
               if (hitTakeProfit || hitStopLoss) {
                  botState.lastTradeTime = now;
                  try {
-                    const exitPrice = await executeTradeInternal(botState.symbol, 'SELL', tradeAllocation);
-                    const finalExitPrice = exitPrice || currentP;
+                    const exitResult = await executeTradeInternal(botState.symbol, 'SELL', tradeAllocation);
+                    const finalExitPrice = exitResult.price || currentP;
+                    const entryExtended2 = entry as any;
+                    const entryFee = entryExtended2.entryFee || 0;
+                    const totalFee = entryFee + (exitResult.fee || 0);
                     const rawPnl = (finalExitPrice - entry.price) * (tradeAllocation / entry.price);
-                    const feeAmount = (tradeAllocation * 0.001);
-                    const netPnl = rawPnl - feeAmount * 2;
+                    const netPnl = rawPnl - totalFee;
                     
                     botState.orderHistory.unshift({
                        id: `ORD-${entry.id || Date.now().toString().slice(-6)}`,
@@ -1075,8 +1078,10 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                        time: new Date(),
                        duration: `${Math.floor((now - entry.time) / 1000)}s`,
                        entryPrice: entry.price,
-                       exitPrice: currentP,
-                       profitPercent: ((currentP - entry.price) / entry.price) * 100
+                       exitPrice: finalExitPrice,
+                       profitPercent: ((finalExitPrice - entry.price) / entry.price) * 100,
+                       fee: totalFee,
+                       txHash: exitResult.txHash
                     });
                     botState.activePositionsList.splice(i, 1);
                     botState.activePositions = botState.activePositionsList.length;
@@ -1163,8 +1168,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
          const now = Date.now();
          
          try {
-             const actualPrice = await executeTradeInternal(symbol, 'BUY', alloc);
-             const finalPrice = actualPrice || currentP;
+             const dcaResult = await executeTradeInternal(symbol, 'BUY', alloc);
+             const finalPrice = dcaResult.price || currentP;
              
              botState.activePositionsList.push({
                  id: `DCA-${Math.random().toString(36).substring(7)}`,
