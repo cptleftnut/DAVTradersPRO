@@ -229,6 +229,21 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const [googleUser, setGoogleUser] = useState<any>(null);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [needsGoogleAuth, setNeedsGoogleAuth] = useState(true);
+  const [apiKey, setApiKey] = useState('');
+  const [apiSecret, setApiSecret] = useState('');
+
+  const saveKeys = async () => {
+    try {
+      await fetch('/api/bot/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, apiSecret })
+      });
+      addLog("API nøgler gemt!", "info");
+    } catch (e) {
+      addLog("Fejl ved lagring af nøgler", "error");
+    }
+  }
 
   // Layout customization state & functions
   const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
@@ -5319,12 +5334,6 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               <button className="text-xs text-gray-500 hover:text-white transition-colors underline">Konf.</button>
            </div>
            
-           {/* Auto-filled demo API fields */}
-            <div className="mt-4 space-y-3 p-3 bg-gray-950/50 rounded-xl border border-gray-800">
-               <p className="text-[10px] text-gray-500 uppercase tracking-widest cursor-pointer">API Nøgler (Krypteret)</p>
-               <div className="font-mono text-xs text-gray-600 bg-gray-900 p-2 rounded truncate border border-gray-800">PUB: ************************</div>
-               <div className="font-mono text-xs text-gray-600 bg-gray-900 p-2 rounded truncate border border-gray-800">SEC: ************************</div>
-            </div>
 
             {/* Paper Trading Mode toggle */}
             <div className="mt-4 p-4 bg-gray-950/50 rounded-xl border border-gray-800">
