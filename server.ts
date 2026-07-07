@@ -599,7 +599,8 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
 
 async function startBot(symbol: string, allocation: number, isLiveTrading: boolean, takeProfit: number, stopLoss: number, strategy: string, useTrailingStop?: boolean, dynamicSizing?: boolean, maxRiskPerTrade?: number, diversifySectors?: boolean, stopLossType?: 'percentage' | 'fixed', autoAdjustVolatility?: boolean, useNewsSentiment?: boolean, circuitBreakerLimit?: number, enableDCA?: boolean, dcaIntervalHours?: number, dcaAllocation?: number, enableAutoStopLoss?: boolean) {
   await stopBot();
-  botState.symbol = symbol === 'SOLUSDT' ? 'SOLUSDC' : symbol;
+  symbol = symbol === 'SOLUSDT' ? 'SOLUSDC' : symbol;
+  botState.symbol = symbol;
   botState.allocation = allocation;
   botState.isLiveTrading = isLiveTrading;
   botState.takeProfit = takeProfit;
@@ -1138,10 +1139,11 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
        
        // Trigger a mock entry
        const now = Date.now();
-       const assetName = botState.symbol.replace(/USDT|USDC|BTC|ETH|BNB$/g, '');
-       const actualAlloc = simulateBuyAsset(assetName, 'USDT', botState.allocation, currentP);
+       const targetQuote = botState.symbol.endsWith('USDC') ? 'USDC' : (botState.symbol.endsWith('BTC') ? 'BTC' : (botState.symbol.endsWith('ETH') ? 'ETH' : (botState.symbol.endsWith('BNB') ? 'BNB' : 'USDT')));
+       const assetName = botState.symbol.replace(new RegExp(`\${targetQuote}$`), '');
+       const actualAlloc = simulateBuyAsset(assetName, targetQuote, botState.allocation, currentP);
        if (actualAlloc > 0) {
-          botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: currentP, time: now, status: 'LIVE', actualAlloc, quoteAsset: 'USDT', assetName });
+          botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: currentP, time: now, status: 'LIVE', actualAlloc, quoteAsset: targetQuote, assetName });
           botState.activePositions = botState.activePositionsList.length;
           saveBotState();
           saveWallet();
@@ -1177,7 +1179,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                  time: now,
                  status: 'LIVE',
                  actualAlloc: alloc,
-                 quoteAsset: 'USDT',
+                 quoteAsset: symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : 'USDT'))),
                  assetName: symbol.replace(/USDT|USDC|BTC|ETH|BNB$/g, ''),
                  maxProfitPct: 0
              });
@@ -1260,7 +1262,7 @@ app.post('/api/bot/update', async (req, res) => {
    try {
    const { symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation } = req.body;
    
-   if (symbol !== undefined) botState.symbol = symbol;
+   if (symbol !== undefined) botState.symbol = symbol === 'SOLUSDT' ? 'SOLUSDC' : symbol;
    if (allocation !== undefined && typeof allocation === 'number') botState.allocation = allocation;
    if (isLiveTrading !== undefined) botState.isLiveTrading = isLiveTrading;
    if (takeProfit !== undefined && typeof takeProfit === 'number') botState.takeProfit = takeProfit;

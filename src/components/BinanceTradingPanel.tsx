@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, FormEvent, DragEvent, useMemo } from 'react';
 
 const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTakeProfit, globalStopLoss, onUpdate }: any) => {
-    const asset = pos.assetName || symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
-    const quote = pos.quoteAsset || (symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT'))))));
+    const asset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
+    const quote = symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))));
     const entryPrice = parseFloat(pos.price || '0');
     const currentPrice = parseFloat(pos.currentPrice || lastPrice || '0');
-    const simProfitPct = pos.simProfitPct || 0;
+    const simProfitPct = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : (pos.simProfitPct || 0);
     const allocUsed = pos.actualAlloc || allocation;
     const rawPnl = allocUsed * (simProfitPct / 100);
     
@@ -84,7 +84,7 @@ const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTak
     );
 };
 
-import { Sparkles, Lock, Bot, Zap, Play, Square, TrendingUp, TrendingDown, Anchor, Activity, RefreshCw, History, X, Shield, Info, Wallet, Calendar, Bell, Download, Newspaper, Mic, Search, ChevronDown, GitCompare, LineChart, BookOpen, ShieldCheck, Rocket, Globe, Loader2, GripVertical, ChevronLeft, ChevronRight, ChevronUp, LayoutGrid, BrainCircuit, Palette, PieChart as PieChartIcon } from 'lucide-react';
+import { Sparkles, Lock, Bot, Zap, Play, Square, TrendingUp, TrendingDown, Anchor, Activity, RefreshCw, History, X, Shield, Info, Wallet, Calendar, Bell, Download, Newspaper, Mic, Search, ChevronDown, GitCompare, LineChart, BookOpen, ShieldCheck, Rocket, Globe, Loader2, GripVertical, ChevronLeft, ChevronRight, ChevronUp, LayoutGrid, BrainCircuit, Palette, PieChart as PieChartIcon, AlertTriangle } from 'lucide-react';
 import { useFirestorePersistence } from '../lib/persistence';
 import { TradeConfirmationModal } from './TradeConfirmationModal';
 import { AiAutopilot } from './AiAutopilot';
@@ -178,6 +178,51 @@ const AVAILABLE_PAIRS = [
   { value: "LQDUSDT", label: "LQD (Inv. Grade Corporate)" },
 ];
 
+export function MarketStatusHeader({ serverSymbol, localSymbol }: { serverSymbol: string, localSymbol: string }) {
+  return (
+    <div className="bg-gray-900/60 border-y border-gray-800/80 p-3 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/20">
+           <Activity className="size-4 animate-pulse" />
+        </div>
+        <div>
+           <h4 className="text-sm font-bold text-gray-200 tracking-wider">Aktivt Handelspar (Server)</h4>
+           <p className="text-[10px] text-gray-500 font-mono">Det par, som agenten analyserer og handler på serveren.</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {serverSymbol ? (
+          <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-lg border border-amber-500/30 font-mono text-sm font-bold">
+            <span>{serverSymbol}</span>
+            {serverSymbol === 'SOLUSDC' && localSymbol !== 'SOLUSDC' && (
+               <span className="bg-amber-500 text-black text-[10px] px-1.5 py-0.5 rounded ml-2">Forced</span>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-gray-800 text-gray-400 px-3 py-1.5 rounded-lg border border-gray-700 font-mono text-sm">
+            <span>Indlæser...</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const mergePositionsLists = (prev: any[], next: any[]) => {
+  if (!next) return [];
+  return next.map((newPos: any) => {
+    const existing = prev.find((p: any) => p.id === newPos.id);
+    if (existing && existing.currentPrice !== undefined) {
+      return {
+        ...newPos,
+        currentPrice: existing.currentPrice,
+        simProfitPct: existing.simProfitPct !== undefined ? existing.simProfitPct : newPos.simProfitPct
+      };
+    }
+    return newPos;
+  });
+};
+
 export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'info'|'warn'|'error') => void }) {
   const [showProModal, setShowProModal] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -268,6 +313,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const [symbol, setSymbol] = useState(() => {
     return localStorage.getItem('binance_pref_symbol') || 'BTCUSDT';
   });
+  const [serverSymbol, setServerSymbol] = useState<string>('');
   const [tickerSearch, setTickerSearch] = useState('');
   const [showTickerDropdown, setShowTickerDropdown] = useState(false);
   const tickerDropdownRef = useRef<HTMLDivElement>(null);
@@ -956,6 +1002,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
           if (state.unpaidFee !== undefined) setUnpaidFee(state.unpaidFee);
           setIsLiveTrading(state.isLiveTrading);
           setSymbol(state.symbol || 'BTCUSDT');
+          setServerSymbol(state.symbol || '');
           setAllocation(state.allocation || 10);
           setTakeProfit(state.takeProfit || 10.0);
           setStopLoss(state.stopLoss || 5.0);
@@ -1338,59 +1385,39 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     pnlSpring.set(totalPnl);
   }, [totalPnl, pnlSpring]);
 
+  // 5-second polling mechanism for server symbol
   useEffect(() => {
-    if (walletData && walletData.spot && !isBotActive) {
-       // Find the right quote currency from spot if we don't have enough of current quote
-       let currentQuote = 'USDT';
-       if (symbol.endsWith('USDC')) currentQuote = 'USDC';
-       if (symbol.endsWith('BTC')) currentQuote = 'BTC';
-       if (symbol.endsWith('ETH')) currentQuote = 'ETH';
-       if (symbol.endsWith('BNB')) currentQuote = 'BNB';
-       
-       const quoteBalance = parseFloat(walletData.spot.find((s:any) => s.asset === currentQuote)?.free || '0');
-       
-       let requiredAmount = allocation; 
-       
-       if (quoteBalance < requiredAmount) {
-           let foundAlt = false;
-           const altQuotes = ['USDT', 'USDC'];
-           for (const q of altQuotes) {
-               if (q === currentQuote) continue;
-               const qBal = parseFloat(walletData.spot.find((s:any) => s.asset === q)?.free || '0');
-               if (qBal >= requiredAmount) {
-                   const newSymbol = symbol.replace(currentQuote, q);
-                   setSymbol(newSymbol);
-                   addLog(`Auto-skiftede handelspar til ${newSymbol} pga. valuta beholdning (mangler ${currentQuote})`, 'info');
-                   foundAlt = true;
-                   break;
-               }
-           }
-           
-           if (!foundAlt && quoteBalance > 10) {
-               const maxAvail = Math.floor(quoteBalance * 0.95); // 95% to leave room for fees
-               if (maxAvail > 10 && maxAvail < requiredAmount) {
-                   setAllocation(maxAvail);
-                   addLog(`Auto-justerede allokering til $${maxAvail} da valuta-beholdningen er lavere end ${requiredAmount}`, 'warn');
-               }
-           } else if (!foundAlt) {
-                // Not enough quote balance even to adjust. Can we find another quote with at least >10 ?
-                for (const q of altQuotes) {
-                    if (q === currentQuote) continue;
-                    const qBal = parseFloat(walletData.spot.find((s:any) => s.asset === q)?.free || '0');
-                    if (qBal > 15) {
-                        const maxAvail = Math.floor(qBal * 0.95);
-                        const newSymbol = symbol.replace(currentQuote, q);
-                        setSymbol(newSymbol);
-                        setAllocation(maxAvail);
-                        addLog(`Skiftede til ${newSymbol} og allokering $${maxAvail} pga. manglende beholdning`, 'info');
-                        foundAlt = true;
-                        break;
-                    }
-                }
-           }
-       }
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await fetch('/api/bot/state');
+        if (res.ok) {
+          const state = await res.json();
+          if (state.symbol) {
+            setServerSymbol(state.symbol);
+            if (state.symbol === 'SOLUSDC' && symbol !== 'SOLUSDC') {
+              setSymbol('SOLUSDC');
+              toast.info("Handelspar synkroniseret til serverens krav (SOLUSDC)");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to poll server symbol state:", err);
+      }
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, [symbol]);
+
+  useEffect(() => {
+    // Auto-switch disabled manually based on user request. 
+    // It was causing the symbol to revert to USDT when USDC balance was low.
+  }, [walletData, symbol, isBotActive, addLog, allocation]);
+
+  useEffect(() => {
+    if (symbol === 'SOLUSDT') {
+      setSymbol('SOLUSDC');
+      toast.info("Handelspar SOL/USDT konverteres automatisk til SOL/USDC");
     }
-  }, [walletData, symbol, isBotActive, addLog]);
+  }, [symbol]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -1398,6 +1425,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
       fetch('/api/bot/state')
         .then(res => res.json())
         .then(state => {
+          if (state.symbol) setServerSymbol(state.symbol);
           if (state.orderHistory) {
               setOrderHistory(state.orderHistory.map((o: any) => ({...o, time: new Date(o.time)})));
           }
@@ -1821,6 +1849,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
            if (res.ok) {
               const state = await res.json();
               setIsBotActive(state.isActive);
+              if (state.symbol) setServerSymbol(state.symbol);
           if (state.unpaidFee !== undefined) setUnpaidFee(state.unpaidFee);
               if (state.wsStatus) setWsStatus(state.wsStatus);
               if (state.reconnectCount !== undefined) setReconnectCount(state.reconnectCount);
@@ -1852,7 +1881,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                  setTotalPnl(netPnl);
               }
               setActivePositions(state.activePositions);
-              setActivePositionsList(state.activePositionsList || []);
+              setActivePositionsList(prev => mergePositionsLists(prev, state.activePositionsList || []));
            }
         } catch(e) {}
      }, isTabActive ? refreshInterval : 60000);
@@ -2103,7 +2132,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               .then(state => {
                  if (state) {
                    setActivePositions(state.activePositions);
-                   setActivePositionsList(state.activePositionsList || []);
+                   setActivePositionsList(prev => mergePositionsLists(prev, state.activePositionsList || []));
                    if (state.wsStatus) setWsStatus(state.wsStatus);
                    if (state.reconnectCount !== undefined) setReconnectCount(state.reconnectCount);
                    if (state.lastHeartbeat) setLastHeartbeat(state.lastHeartbeat);
@@ -2522,7 +2551,21 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
 
       <TickerTape />
 
-            {unpaidFee > 0 && (
+      <MarketStatusHeader serverSymbol={serverSymbol} localSymbol={symbol} />
+      
+      {symbol !== 'SOLUSDC' && (
+        <div className="bg-rose-500/10 border border-rose-500/50 rounded-2xl p-4 mb-6 flex items-start gap-4 animate-in fade-in duration-300">
+           <AlertTriangle className="size-5 text-rose-500 shrink-0 mt-0.5" />
+           <div>
+              <h3 className="text-rose-500 font-bold text-sm mb-1">Advarsel: Ikke-understøttet Handelspar</h3>
+              <p className="text-rose-500/80 text-xs">
+                 Du har valgt <strong>{symbol}</strong> lokalt, men af hensyn til live trading stabilitet er <strong>SOLUSDC</strong> i øjeblikket det eneste understøttede par. Serveren tvinger automatisk din handel over på SOLUSDC. Vælg SOLUSDC for at synkronisere dit UI.
+              </p>
+           </div>
+        </div>
+      )}
+
+      {unpaidFee > 0 && (
         <div className="bg-rose-500/10 border border-rose-500/50 rounded-2xl p-6 mb-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top fade-in duration-500">
            <div className="flex items-start gap-4 flex-1">
               <div className="p-3 bg-rose-500/20 rounded-xl shrink-0 mt-1">
@@ -2986,7 +3029,14 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
             <div className="space-y-4">
                {/* Pair Selection */}
                <div className="relative" ref={tickerDropdownRef}>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Handelspar</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Handelspar</label>
+                    {symbol === 'SOLUSDC' && (
+                      <span className="text-[10px] bg-cyan-950/60 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-900/50" title="Systemet tvinger automatisk SOLUSDT til SOLUSDC">
+                        Auto-Mapped (USDC)
+                      </span>
+                    )}
+                  </div>
                   <div 
                     className="w-full bg-gray-950 border border-gray-800 text-white rounded-xl p-3 focus-within:ring-2 focus-within:ring-amber-500 font-mono text-xs sm:text-sm flex items-center justify-between cursor-pointer transition-colors hover:border-gray-700"
                     onClick={() => {
@@ -5061,9 +5111,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                          key={pos.id || idx}
                          pos={pos}
                          idx={idx}
-                         symbol={symbol}
+                         symbol={serverSymbol || symbol}
                          allocation={allocation}
-                         lastPrice={lastPriceRef.current}
+                         lastPrice={currentPrice}
                          globalTakeProfit={takeProfit}
                          globalStopLoss={stopLoss}
                          onUpdate={async (id: string, tp: number, sl: number) => {
@@ -5080,7 +5130,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                         .then(r => r.json())
                                         .then(state => {
                                             if (state.activePositionsList) {
-                                                setActivePositionsList(state.activePositionsList);
+                                                setActivePositionsList(prev => mergePositionsLists(prev, state.activePositionsList || []));
                                             }
                                         });
                                  } else {
