@@ -2364,7 +2364,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
               }
               
               const profitPct = tradeChangePct * 100 * customParams.leverage;
-              const hitTakeProfit = profitPct >= takeProfit;
+              const hitTakeProfit = profitPct >= (takeProfit + 0.2); // Factoring in 0.2% round-trip fee to guarantee net-positive trade
               const hitStopLoss = profitPct <= -stopLoss;
               const forceTimedExit = (i - lastEntryIndex) >= 6; // Hold max 6 periods
               

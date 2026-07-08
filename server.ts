@@ -376,10 +376,10 @@ let dcaInterval: NodeJS.Timeout | null = null;
 let recentPriceWindow: number[] = [];
 let lastWindowPushTime = 0;
 
-function evaluateStrategySignal(strategy: string, prices: number[], currentPrice: number): boolean {
+function evaluateStrategySignal(strategy: string, prices: number[], currentPrice: number): 'BUY' | 'SELL' | null {
   if (prices.length < 5) {
     // Collect some data points to warm up indicators, default to allow if very fresh so user sees activity
-    return true;
+    return 'BUY';
   }
 
   const cleanStrategy = (strategy || 'Momentum Trading').trim();
@@ -387,7 +387,12 @@ function evaluateStrategySignal(strategy: string, prices: number[], currentPrice
   if (cleanStrategy === 'Momentum Trading') {
     const lookbackIndex = Math.max(0, prices.length - 10);
     const prevPrice = prices[lookbackIndex];
-    return currentPrice > prevPrice * 1.0001; // 0.01% gain over the last 10 seconds
+    if (currentPrice > prevPrice * 1.0001) {
+      return 'BUY'; // 0.01% gain over the last 10 seconds
+    } else if (currentPrice < prevPrice * 0.9999) {
+      return 'SELL'; // 0.01% loss over the last 10 seconds
+    }
+    return null;
   }
 
   if (cleanStrategy === 'Mean Reversion') {
@@ -397,15 +402,23 @@ function evaluateStrategySignal(strategy: string, prices: number[], currentPrice
     const variance = prices.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / prices.length;
     const stdDev = Math.sqrt(variance) || 0.0001;
     
-    // Lower bollinger band (SMA - 1.5 * stdDev)
+    // Lower bollinger band (SMA - 1.5 * stdDev) and Upper bollinger band (SMA + 1.5 * stdDev)
     const lowerBand = avg - (1.5 * stdDev);
-    return currentPrice < lowerBand;
+    const upperBand = avg + (1.5 * stdDev);
+    
+    if (currentPrice < lowerBand) {
+      return 'BUY';
+    } else if (currentPrice > upperBand) {
+      return 'SELL';
+    }
+    return null;
   }
 
   if (cleanStrategy === 'Simple Moving Average (SMA)') {
     if (prices.length < 25) {
       const sum = prices.reduce((a, b) => a + b, 0);
-      return currentPrice > (sum / prices.length);
+      const avg = sum / prices.length;
+      return currentPrice > avg ? 'BUY' : 'SELL';
     }
     const shortSum = prices.slice(-10).reduce((a, b) => a + b, 0);
     const shortAvg = shortSum / 10;
@@ -413,24 +426,34 @@ function evaluateStrategySignal(strategy: string, prices: number[], currentPrice
     const longSum = prices.slice(-25).reduce((a, b) => a + b, 0);
     const longAvg = longSum / 25;
     
-    return shortAvg > longAvg; // Bullish MA Crossover
+    return shortAvg > longAvg ? 'BUY' : 'SELL'; // MA Crossover
   }
 
   if (cleanStrategy === 'High-Frequency Scalper (HFT)') {
-    if (prices.length < 3) return true;
+    if (prices.length < 3) return 'BUY';
     const len = prices.length;
-    // Tick momentum scalp: last 3 prices strictly increasing
-    return prices[len - 1] > prices[len - 2] && prices[len - 2] > prices[len - 3];
+    // Tick momentum scalp: last 3 prices strictly increasing or decreasing
+    if (prices[len - 1] > prices[len - 2] && prices[len - 2] > prices[len - 3]) {
+      return 'BUY';
+    } else if (prices[len - 1] < prices[len - 2] && prices[len - 2] < prices[len - 3]) {
+      return 'SELL';
+    }
+    return null;
   }
 
   if (cleanStrategy === 'Grid Trading Arbitrage') {
-    // Grid: Buy on dips to capture minor fluctuations
+    // Grid: Buy on dips to capture minor fluctuations, sell on peaks
     const lookbackIndex = Math.max(0, prices.length - 8);
     const refereePrice = prices[lookbackIndex];
-    return currentPrice < refereePrice * 0.9985; // 0.15% drop below short-term referee
+    if (currentPrice < refereePrice * 0.9985) {
+      return 'BUY'; // 0.15% drop below short-term referee
+    } else if (currentPrice > refereePrice * 1.0015) {
+      return 'SELL';
+    }
+    return null;
   }
 
-  return true;
+  return 'BUY';
 }
 
 async function stopBot() {
@@ -1054,12 +1077,12 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
           }
           
           if (tradeAllocation < 10) tradeAllocation = 10;
-          // Entry
-          if (botState.activePositionsList.length < 5) {
-             const cooldown = botState.isLiveTrading ? 15000 : 8000;
-             if ((now - (botState.lastTradeTime ?? 0) > cooldown) || !botState.lastTradeTime) {
-                const hasSignal = evaluateStrategySignal(botState.strategy, recentPriceWindow, currentP);
-                if (hasSignal) {
+          // Entry and Strategy Exit
+          const cooldown = botState.isLiveTrading ? 15000 : 8000;
+          if ((now - (botState.lastTradeTime ?? 0) > cooldown) || !botState.lastTradeTime) {
+             const signal = evaluateStrategySignal(botState.strategy, recentPriceWindow, currentP);
+             if (signal === 'BUY') {
+                if (botState.activePositionsList.length < 5) {
                    botState.lastTradeTime = now;
                    
                    let targetQuote = 'USD';
@@ -1079,6 +1102,44 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                        saveBotState();
                        saveWallet();
                    }
+                }
+             } else if (signal === 'SELL') {
+                // Strategy Sell signal - Exit any matching active positions!
+                let exitedAny = false;
+                for (let i = botState.activePositionsList.length - 1; i >= 0; i--) {
+                    const entry = botState.activePositionsList[i];
+                    const aName = (entry as any).assetName || rawSymbol;
+                    if (aName === rawSymbol) {
+                        const profitPct = ((currentP - entry.price) / entry.price) * 100;
+                        if (profitPct > 0 && profitPct < 0.2) continue; // Skip strategy exit if fee would turn positive trade negative
+                        const allocUsed = (entry as any).actualAlloc || tradeAllocation;
+                        const rawPnl = allocUsed * (profitPct / 100);
+                        const feeAmount = (allocUsed * 0.001);
+                        const netPnl = rawPnl - feeAmount * 2;
+                        const qAsset = (entry as any).quoteAsset || 'USD';
+                        
+                        simulateSellAsset(aName, qAsset, allocUsed, netPnl, entry.price);
+                        
+                        botState.orderHistory.unshift({
+                            id: `ORD-${entry.id || Date.now().toString().slice(-6)}`,
+                            symbol: aName + "/" + qAsset,
+                            type: 'SELL',
+                            pnl: netPnl,
+                            time: new Date(),
+                            duration: `${Math.floor((now - entry.time) / 1000)}s`,
+                            entryPrice: entry.price,
+                            exitPrice: currentP,
+                            profitPercent: profitPct
+                        });
+                        botState.activePositionsList.splice(i, 1);
+                        exitedAny = true;
+                    }
+                }
+                if (exitedAny) {
+                    botState.lastTradeTime = now;
+                    botState.activePositions = botState.activePositionsList.length;
+                    saveBotState();
+                    saveWallet();
                 }
              }
           }
@@ -1108,7 +1169,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
              entryExtended.currentPrice = entry.price * (1 + simProfitPercent / 100);
              
              var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
-             const hitSimTakeProfit = simProfitPercent >= posTakeProfit;
+             const hitSimTakeProfit = simProfitPercent >= (posTakeProfit + 0.2); // Factoring in 0.2% round-trip fee to guarantee net-positive trade
              const hitSimStopLoss = (botState.enableAutoStopLoss !== false) && (simProfitPercent <= -currentTargetDropPct);
              const hitTimeout = elapsed >= entryExtended.durationMs;
              
@@ -1264,12 +1325,86 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
         }
         
         if (tradeAllocation < 10) tradeAllocation = 10;
-        // Strategy-guided Trading logic - Entry
-        if (botState.activePositionsList.length < 5) {
+        // Strategy-guided Trading logic - Entry and Strategy Exit
+        if (botState.activePositionsList.length < 5 || (evaluateStrategySignal(botState.strategy, recentPriceWindow, currentP) === 'SELL')) {
            const cooldown = botState.isLiveTrading ? 15000 : 8000;
             if ((now - (botState.lastTradeTime ?? 0) > cooldown) || !botState.lastTradeTime) {
-              const hasSignal = evaluateStrategySignal(botState.strategy, recentPriceWindow, currentP);
+              const signal = evaluateStrategySignal(botState.strategy, recentPriceWindow, currentP);
               
+              if (signal === 'SELL') {
+                 // Strategy Sell signal - Exit any matching active positions!
+                 let exitedAny = false;
+                 for (let i = botState.activePositionsList.length - 1; i >= 0; i--) {
+                     const entry = botState.activePositionsList[i];
+                     const entryExtended = entry as any;
+                     const isPosPaper = entryExtended.isPaper || !botState.isLiveTrading;
+                     const profitPercent = ((currentP - entry.price) / entry.price) * 100;
+                     if (profitPercent > 0 && profitPercent < 0.2) continue; // Skip strategy exit if fee would turn positive trade negative
+                     
+                     if (isPosPaper) {
+                         const profitPercent = ((currentP - entry.price) / entry.price) * 100;
+                         const allocUsed = entryExtended.actualAlloc || tradeAllocation;
+                         const rawPnl = allocUsed * (profitPercent / 100);
+                         const feeAmount = (allocUsed * 0.001);
+                         const netPnl = rawPnl - feeAmount * 2;
+                         
+                         const qAsset = entryExtended.quoteAsset || (botState.symbol.endsWith('USDC') ? 'USDC' : (botState.symbol.endsWith('USDT') ? 'USDT' : 'USDT'));
+                         const aName = entryExtended.assetName || botState.symbol.replace(/USDT|USDC/g, '');
+                         
+                         simulateSellAsset(aName, qAsset, allocUsed, netPnl, entry.price);
+                         
+                         botState.orderHistory.unshift({
+                            id: `ORD-${entry.id || Date.now().toString().slice(-6)}`,
+                            symbol: aName + qAsset,
+                            type: 'SELL',
+                            pnl: netPnl,
+                            time: new Date(),
+                            duration: `${Math.floor((now - entry.time) / 1000)}s`,
+                            entryPrice: entry.price,
+                            exitPrice: currentP,
+                            profitPercent: profitPercent
+                         });
+                         botState.activePositionsList.splice(i, 1);
+                         exitedAny = true;
+                     } else {
+                         // Live exit on strategy SELL signal
+                         try {
+                            const exitResult = await executeTradeInternal(botState.symbol, 'SELL', tradeAllocation);
+                            const finalExitPrice = exitResult.price || currentP;
+                            const entryFee = entryExtended.entryFee || 0;
+                            const totalFee = entryFee + (exitResult.fee || 0);
+                            const rawPnl = (finalExitPrice - entry.price) * (tradeAllocation / entry.price);
+                            const netPnl = rawPnl - totalFee;
+                            
+                            botState.orderHistory.unshift({
+                               id: `ORD-${entry.id || Date.now().toString().slice(-6)}`,
+                               symbol: botState.symbol.replace(/USDT|USDC/g, ''),
+                               type: 'SELL',
+                               pnl: netPnl,
+                               time: new Date(),
+                               duration: `${Math.floor((now - entry.time) / 1000)}s`,
+                               entryPrice: entry.price,
+                               exitPrice: finalExitPrice,
+                               profitPercent: ((finalExitPrice - entry.price) / entry.price) * 100,
+                               fee: totalFee,
+                               txHash: exitResult.txHash
+                            });
+                            botState.activePositionsList.splice(i, 1);
+                            exitedAny = true;
+                         } catch(e: any) {
+                            console.warn("Live strategy exit failed", e);
+                         }
+                     }
+                 }
+                 if (exitedAny) {
+                     botState.lastTradeTime = now;
+                     botState.activePositions = botState.activePositionsList.length;
+                     saveBotState();
+                     saveWallet();
+                 }
+              }
+
+              const hasSignal = signal === 'BUY' && botState.activePositionsList.length < 5;
               if (hasSignal) {
                 botState.lastTradeTime = now;
                 
@@ -1409,7 +1544,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
               }
               
               var posTakeProfit = entry.takeProfit !== undefined ? entry.takeProfit : botState.takeProfit;
-              const hitSimTakeProfit = simProfitPercent >= posTakeProfit;
+              const hitSimTakeProfit = simProfitPercent >= (posTakeProfit + 0.2); // Factoring in 0.2% round-trip fee to guarantee net-positive trade
               const isSimTrailingStopTriggered = (botState.enableAutoStopLoss !== false) && botState.useTrailingStop && (simProfitPercent < (entryExtended.maxProfitPct || 0) - currentTargetDropPct);
               const isSimStandardStopTriggered = (botState.enableAutoStopLoss !== false) && !botState.useTrailingStop && (simProfitPercent <= -currentTargetDropPct);
               const isHardStopFloorTriggered = simProfitPercent <= -15.0; // Hard 15% safety limit
@@ -1452,7 +1587,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
               }
               
               var posTakeProfit = entryExtended.takeProfit !== undefined ? entryExtended.takeProfit : botState.takeProfit;
-              const hitTakeProfit = profitPercent >= posTakeProfit;
+              const hitTakeProfit = profitPercent >= (posTakeProfit + 0.2); // Factoring in 0.2% round-trip fee to guarantee net-positive trade
               const posStopLoss = entryExtended.stopLoss !== undefined ? entryExtended.stopLoss : botState.stopLoss;
               const _targetDropPctExit = botState.stopLossType === 'fixed' ? (posStopLoss / entry.price) * 100 : posStopLoss;
               
