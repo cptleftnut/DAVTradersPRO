@@ -1498,6 +1498,67 @@ async function startBot(
 
           // Circuit Breaker Logic
           if (botState.circuitBreakerLimit) {
+              const today = new Date().toISOString().split('T')[0];
+
+              let spotDict = null;
+              const getWalletValues = () => {
+                  if (!spotDict) {
+                      spotDict = {};
+                      for (let i = 0; i < simulatedWallet.spot.length; i++) {
+                          const s = simulatedWallet.spot[i];
+                          spotDict[s.asset] = s;
+                      }
+                  }
+
+                  const baseAsset = botState.symbol.replace(/USDT$|USDC$|BTC$|ETH$|BNB$|EUR$/, '');
+                  let usdtObj = spotDict['USDT'] || spotDict['USDC'] || spotDict['USD'];
+                  if (!usdtObj) {
+                     const usdKey = Object.keys(spotDict).find(k => k.includes('USD'));
+                     if (usdKey) usdtObj = spotDict[usdKey];
+                  }
+                  const assetObj = spotDict[baseAsset];
+
+                  const usdt = parseFloat(usdtObj?.free || '0');
+                  const usdtLocked = parseFloat(usdtObj?.locked || '0');
+                  const asset = parseFloat(assetObj?.free || '0');
+
+                  return { usdt, usdtLocked, asset };
+              };
+
+              if (botState.circuitBreakerDate !== today) {
+                  botState.circuitBreakerDate = today;
+                  let startVal = 1000;
+                  if (!botState.isLiveTrading) {
+                     const vals = getWalletValues();
+                     startVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
+                  }
+                  botState.dailyStartPortfolioValue = startVal > 0 ? startVal : 1000;
+                  botState.circuitBreakerTripped = false;
+                  saveBotState();
+              } else if (!botState.circuitBreakerTripped && botState.dailyStartPortfolioValue) {
+                  let currentVal = botState.dailyStartPortfolioValue;
+                  if (!botState.isLiveTrading) {
+                     const vals = getWalletValues();
+                     currentVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
+                  } else {
+                     let unrealizedPnl = 0;
+                     botState.activePositionsList.forEach(pos => {
+                         const posAllocQty = pos.actualAlloc || (botState.allocation / pos.price);
+                         unrealizedPnl += (currentP - pos.price) * posAllocQty; 
+                     });
+                     const realizedPnl = botState.orderHistory
+                       .filter(o => new Date(o.time).toISOString().split('T')[0] === botState.circuitBreakerDate)
+                       .reduce((acc, o) => acc + (o.pnl || 0), 0);
+                     currentVal = botState.dailyStartPortfolioValue + realizedPnl + unrealizedPnl;
+                  }
+                  const dropPct = ((botState.dailyStartPortfolioValue - currentVal) / botState.dailyStartPortfolioValue) * 100;
+                  if (dropPct >= botState.circuitBreakerLimit) {
+                      botState.circuitBreakerTripped = true;
+                      botState.isActive = false; // Pause trading
+                      saveBotState();
+                      console.warn(`[Circuit Breaker] Tripped! Portfolio dropped ${dropPct.toFixed(2)}% (Limit: ${botState.circuitBreakerLimit}%). Trading paused.`);
+                      return; // Stop processing this tick
+                  }
             const today = new Date().toISOString().split("T")[0];
             if (botState.circuitBreakerDate !== today) {
               botState.circuitBreakerDate = today;
@@ -1828,6 +1889,67 @@ async function startBot(
 
         // Circuit Breaker Logic
         if (botState.circuitBreakerLimit) {
+            const today = new Date().toISOString().split('T')[0];
+
+            let spotDict = null;
+            const getWalletValues = () => {
+                if (!spotDict) {
+                    spotDict = {};
+                    for (let i = 0; i < simulatedWallet.spot.length; i++) {
+                        const s = simulatedWallet.spot[i];
+                        spotDict[s.asset] = s;
+                    }
+                }
+
+                const baseAsset = botState.symbol.replace(/USDT$|USDC$|BTC$|ETH$|BNB$|EUR$/, '');
+                let usdtObj = spotDict['USDT'] || spotDict['USDC'] || spotDict['USD'];
+                if (!usdtObj) {
+                   const usdKey = Object.keys(spotDict).find(k => k.includes('USD'));
+                   if (usdKey) usdtObj = spotDict[usdKey];
+                }
+                const assetObj = spotDict[baseAsset];
+
+                const usdt = parseFloat(usdtObj?.free || '0');
+                const usdtLocked = parseFloat(usdtObj?.locked || '0');
+                const asset = parseFloat(assetObj?.free || '0');
+
+                return { usdt, usdtLocked, asset };
+            };
+
+            if (botState.circuitBreakerDate !== today) {
+                botState.circuitBreakerDate = today;
+                let startVal = 1000;
+                if (!botState.isLiveTrading) {
+                   const vals = getWalletValues();
+                   startVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
+                }
+                botState.dailyStartPortfolioValue = startVal > 0 ? startVal : 1000;
+                botState.circuitBreakerTripped = false;
+                saveBotState();
+            } else if (!botState.circuitBreakerTripped && botState.dailyStartPortfolioValue) {
+                let currentVal = botState.dailyStartPortfolioValue;
+                if (!botState.isLiveTrading) {
+                   const vals = getWalletValues();
+                   currentVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
+                } else {
+                   let unrealizedPnl = 0;
+                   botState.activePositionsList.forEach(pos => {
+                       const posAllocQty = pos.actualAlloc || (botState.allocation / pos.price);
+                       unrealizedPnl += (currentP - pos.price) * posAllocQty; 
+                   });
+                   const realizedPnl = botState.orderHistory
+                     .filter(o => new Date(o.time).toISOString().split('T')[0] === botState.circuitBreakerDate)
+                     .reduce((acc, o) => acc + (o.pnl || 0), 0);
+                   currentVal = botState.dailyStartPortfolioValue + realizedPnl + unrealizedPnl;
+                }
+                const dropPct = ((botState.dailyStartPortfolioValue - currentVal) / botState.dailyStartPortfolioValue) * 100;
+                if (dropPct >= botState.circuitBreakerLimit) {
+                    botState.circuitBreakerTripped = true;
+                    botState.isActive = false; // Pause trading
+                    saveBotState();
+                    console.warn(`[Circuit Breaker] Tripped! Portfolio dropped ${dropPct.toFixed(2)}% (Limit: ${botState.circuitBreakerLimit}%). Trading paused.`);
+                    return; // Stop processing this tick
+                }
           const today = new Date().toISOString().split("T")[0];
           if (botState.circuitBreakerDate !== today) {
             botState.circuitBreakerDate = today;
