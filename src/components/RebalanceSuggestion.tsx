@@ -63,20 +63,28 @@ export const RebalanceSuggestion: React.FC = () => {
         
         const activeTargets = targets[userProfile as keyof typeof targets] || targets["Balanceret"];
         
-        for (const s of relevantAssets) {
-          const qty = parseFloat(s.free) + parseFloat(s.locked);
-          let price = 1;
-          
-          if (s.asset !== "USDT" && s.asset !== "USDC") {
-            try {
-              const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${s.asset}USDT`);
-              if (pRes.ok) {
-                const json = await pRes.json();
-                price = parseFloat(json.price);
-              }
-            } catch (e) {} 
-          }
-          
+        const fetchAssetPrice = async (asset: string) => {
+          if (asset === "USDT" || asset === "USDC") return 1;
+          try {
+            const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${asset}USDT`);
+            if (pRes.ok) {
+              const json = await pRes.json();
+              return parseFloat(json.price);
+            }
+          } catch (e) {}
+          return 1;
+        };
+
+        const assetsWithPrices = await Promise.all(
+          relevantAssets.map(async (s: any) => {
+            const qty = parseFloat(s.free) + parseFloat(s.locked);
+            const price = await fetchAssetPrice(s.asset);
+            return { s, qty, price };
+          })
+        );
+
+        for (const item of assetsWithPrices) {
+          const { s, qty, price } = item;
           const val = qty * price;
           totalUsdtValue += val;
           newHoldings.push({
@@ -103,19 +111,12 @@ export const RebalanceSuggestion: React.FC = () => {
            }
         }
         
-        // Fetch prices for zero balance targets
-        for (let i=0; i<newHoldings.length; i++) {
-           const h = newHoldings[i];
+        // Fetch prices for zero balance targets concurrently
+        await Promise.all(newHoldings.map(async (h) => {
            if (h.value === 0 && h.asset !== "USDT" && h.asset !== "USDC") {
-               try {
-                  const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${h.asset}USDT`);
-                  if (pRes.ok) {
-                    const json = await pRes.json();
-                    h.price = parseFloat(json.price);
-                  }
-                } catch (e) {} 
+               h.price = await fetchAssetPrice(h.asset);
            }
-        }
+        }));
         
         if (totalUsdtValue > 0) {
           newHoldings = newHoldings
