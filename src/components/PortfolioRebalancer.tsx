@@ -79,7 +79,7 @@ export function PortfolioRebalancer({
         (s: any) => parseFloat(s.free) > 0 || parseFloat(s.locked) > 0,
       );
 
-      for (const s of relevantAssets) {
+      const promises = relevantAssets.map(async (s: any) => {
         const qty = parseFloat(s.free) + parseFloat(s.locked);
         let price = 1;
 
@@ -97,10 +97,16 @@ export function PortfolioRebalancer({
           }
         }
 
+        return { asset: s.asset, qty, price };
+      });
+
+      const results = await Promise.all(promises);
+
+      for (const { asset, qty, price } of results) {
         const val = qty * price;
         totalUsdtValue += val;
         newHoldings.push({
-          asset: s.asset,
+          asset,
           weight: 0,
           targetWeight: 0,
           value: val,
