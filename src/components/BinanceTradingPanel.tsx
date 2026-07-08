@@ -2582,7 +2582,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
            <div>
               <h3 className="text-rose-500 font-bold text-sm mb-1">Advarsel: Ikke-understøttet Handelspar</h3>
               <p className="text-rose-500/80 text-xs">
-                 Du har valgt <strong>{symbol}</strong> lokalt, men af hensyn til live trading stabilitet er <strong>SOLUSDC</strong> i øjeblikket det eneste understøttede par. Serveren tvinger automatisk din handel over på SOLUSDC. Vælg SOLUSDC for at synkronisere dit UI.
+                 Du har valgt <strong>{symbol}</strong> lokalt, men af hensyn til live trading stabilitet er <strong>SOL/USDC</strong> i øjeblikket det eneste understøttede par. Serveren tvinger automatisk din handel over på SOL/USDC. Vælg SOL/USDC for at synkronisere dit UI.
               </p>
            </div>
         </div>
@@ -3055,7 +3055,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Handelspar</label>
                     {symbol === 'SOLUSDC' && (
-                      <span className="text-[10px] bg-cyan-950/60 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-900/50" title="Systemet tvinger automatisk SOLUSDT til SOLUSDC">
+                      <span className="text-[10px] bg-cyan-950/60 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-900/50" title="Systemet tvinger automatisk SOLUSDT til SOL/USDC">
                         Auto-Mapped (USDC)
                       </span>
                     )}
