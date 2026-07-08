@@ -313,10 +313,10 @@ interface SimulatedWallet {
 
 let simulatedWallet: SimulatedWallet = {
   spot: [
-    { asset: 'USDT', free: '0.00000000', locked: '0.00000000' },
+    { asset: 'USDT', free: '100.00000000', locked: '0.00000000' },
     { asset: 'BTC', free: '0.00000000', locked: '0.00000000' },
     { asset: 'ETH', free: '0.00000000', locked: '0.00000000' },
-    { asset: 'SOL', free: '0.35000000', locked: '0.00000000' },
+    { asset: 'SOL', free: '10.00000000', locked: '0.00000000' },
     { asset: 'BNB', free: '0.00000000', locked: '0.00000000' },
     { asset: 'DOGE', free: '0.00000000', locked: '0.00000000' }
   ],
@@ -335,9 +335,13 @@ function simulateBuyAsset(asset: string, quoteAsset: string, usdtAmount: number,
   }
   
   const currentFree = parseFloat(quoteItem.free);
-  if (currentFree < 0.01) return 0; // Minimal balance check
+  if (currentFree < 5.00) return 0; // Enforce minimum 5 USD rule for paper trading
   
   const actualAmount = Math.min(usdtAmount, currentFree);
+  if (actualAmount < 5.00) {
+    console.log(`[Sim] simulateBuyAsset aborted: actualAmount (${actualAmount.toFixed(2)}) is under the minimum $5 required.`);
+    return 0; // Enforce minimum 5 USD rule
+  }
   console.log(`[Sim] simulateBuyAsset: actualAmount=${actualAmount}`);
   
   quoteItem.free = (currentFree - actualAmount).toFixed(8);
@@ -741,6 +745,12 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                     throw new Error(errMsg);
                 }
 
+                // Verify sufficient quote asset balance BEFORE calling client.newOrder
+                if (formattedQtyNum * currentPrice > freeQuoteBalance) {
+                    let errMsg = `Binance Order Error: Utilstrækkelig saldo. Du forsøger at købe for $${(formattedQtyNum * currentPrice).toFixed(2)}, men din tilgængelige Spot-saldo for ${quoteAsset} er kun ${freeQuoteBalance.toFixed(2)}.`;
+                    throw new Error(errMsg);
+                }
+
                 try {
                     const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQtyStr, recvWindow: 60000 });
                     orderData = orderRes.data;
@@ -761,15 +771,21 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                         let formattedQtyStrRetry = roundStep(targetQtyRetry, stepSize);
                         let formattedQtyNumRetry = parseFloat(formattedQtyStrRetry);
                         
-                        if (formattedQtyNumRetry * currentPrice >= 10.00) {
-                            const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQtyStrRetry, recvWindow: 60000 });
-                            orderData = orderRes.data;
-                            orderExecuted = true;
-                        } else {
+                        // Check balance and minimum size validation before retry order
+                        if (formattedQtyNumRetry * currentPrice < 10.00) {
                             let errMsg = `Binance Order Error: Købsværdi ($${(formattedQtyNumRetry * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD efter mængdereduktion. `;
                             errMsg += `Din tilgængelige Spot-saldo for ${quoteAsset} er ${freeQuoteBalance.toFixed(2)}. `;
                             throw new Error(errMsg);
                         }
+
+                        if (formattedQtyNumRetry * currentPrice > freeQuoteBalance) {
+                            let errMsg = `Binance Order Error: Utilstrækkelig saldo under genforsøg. Din tilgængelige Spot-saldo for ${quoteAsset} er kun ${freeQuoteBalance.toFixed(2)}.`;
+                            throw new Error(errMsg);
+                        }
+
+                        const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQtyStrRetry, recvWindow: 60000 });
+                        orderData = orderRes.data;
+                        orderExecuted = true;
                     } else {
                         throw err; // Propagate network or other errors without retrying, to prevent double orders
                     }
@@ -786,6 +802,18 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
             }
 
             let targetQty = formattedAllocation / currentPrice;
+            
+            // Validate base balance before any calculations or order placement
+            if (freeBaseBalance <= 0 || isNaN(freeBaseBalance)) {
+                let errMsg = `Binance Order Error: Utilstrækkelig Spot-saldo for at sælge ${baseAsset}. `;
+                errMsg += `Du har 0 tilgængelige frie midler i ${baseAsset}. `;
+                if (balanceListStr) {
+                    errMsg += `Spot-beholdninger fundet: [${balanceListStr}]. `;
+                }
+                errMsg += `(Vigtigt: Hvis dine midler står i din 'Funding' eller 'Futures' wallet, skal du overføre dem til 'Spot' wallet før botten kan handle)`;
+                throw new Error(errMsg);
+            }
+
             let finalQty = Math.min(targetQty, freeBaseBalance);
 
             // If requested to sell almost all of our free balance (97%+), sell everything to avoid leaving small dust in the wallet
@@ -799,6 +827,12 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
             if (formattedQtyNum * currentPrice < 10) {
                 // Try to force selling the entire base balance if we are cleaning up, otherwise we let Binance report the LOT_SIZE/MIN_NOTIONAL error
                 formattedQtyStr = roundStep(freeBaseBalance, stepSize);
+                formattedQtyNum = parseFloat(formattedQtyStr);
+            }
+
+            // Ensure we are not attempting to sell an empty quantity
+            if (formattedQtyNum <= 0) {
+                throw new Error(`Binance Order Error: Den afrundede salgsmængde er 0. Den tilgængelige Spot-saldo for ${baseAsset} er for lav (${freeBaseBalance.toFixed(5)}).`);
             }
 
             try {
@@ -844,12 +878,58 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
     }
 }
 
+let cachedExchangePairs: string[] = [];
+async function getBinanceSpotPairs(): Promise<string[]> {
+    if (cachedExchangePairs.length > 0) return cachedExchangePairs;
+    try {
+        const res = await fetch("https://api.binance.com/api/v3/exchangeInfo");
+        const data = await res.json();
+        if (data && data.symbols) {
+            cachedExchangePairs = data.symbols
+                .filter((s: any) => s.status === 'TRADING' && s.isSpotTradingAllowed)
+                .map((s: any) => s.symbol);
+            console.log(`[Auto Switch] Dynamisk indlæst ${cachedExchangePairs.length} Binance Spot handelspar.`);
+            return cachedExchangePairs;
+        }
+    } catch (e: any) {
+        console.warn("Could not fetch dynamically from Binance exchangeInfo, using hardcoded fallback pairs:", e.message);
+    }
+    // Hardcoded fallback of major pairs
+    return [
+      "BTCUSDT", "BTCUSDC", "ETHUSDT", "ETHUSDC", "SOLUSDT", "SOLUSDC", "BNBUSDT", "BNBUSDC",
+      "XRPUSDT", "XRPUSDC", "ADAUSDT", "ADAUSDC", "DOGEUSDT", "DOGEUSDC", "DOTUSDT", "DOTUSDC",
+      "LINKUSDT", "MATICUSDT", "POLUSDT", "LTCUSDT", "SHIBUSDT", "TRXUSDT", "AVAXUSDT", "ATOMUSDT",
+      "UNIUSDT", "BCHUSDT", "ETCUSDT", "NEARUSDT", "FTMUSDT", "ALGOUSDT", "HBARUSDT", "ICPUSDT",
+      "APTUSDT", "OPUSDT", "ARBUSDT", "SUIUSDT", "PEPEUSDT", "WIFUSDT", "FLOKIUSDT", "BONKUSDT",
+      "JASMYUSDT", "FETUSDT", "RENDERUSDT", "SOLBTC", "SOLEUR", "SOLBNB", "ETHBTC", "BNBBTC",
+      "EURUSDC", "BONKUSDC", "FLOKIUSDC", "PENDLEUSDC", "BOMEUSDC", "JTOUSDC", "WIFUSDC", "CKBUSDC",
+      "ENAUSDC", "ETHFIUSDC", "YGGUSDC", "CFXUSDC", "RUNEUSDC", "SAGAUSDC", "APTUSDC", "GALAUSDC",
+      "STXUSDC", "ICPUSDC", "TRBUSDC", "ARKMUSDC", "DOTUSDC", "INJUSDC", "OPUSDC", "ORDIUSDC",
+      "SUIUSDC", "TIAUSDC", "MANTAUSDC", "BLURUSDC", "ALTUSDC", "SEIUSDC", "JUPUSDC", "FILUSDC",
+      "WLDUSDC", "UNIUSDC", "PIXELUSDC", "STRKUSDC", "PEPEUSDC", "SHIBUSDC", "NEARUSDC", "FETUSDC",
+      "CHZUSDT", "BANDUSDT", "XTZUSDT", "RVNUSDT", "HBARUSDT", "STXUSDT", "KAVAUSDT", "ARPAUSDT",
+      "IOTXUSDT", "RLCUSDT", "BCHUSDT", "FTTUSDT", "EURUSDT", "OGNUSDT", "LSKUSDT", "BNTUSDT",
+      "MBLUSDT", "COTIUSDT", "SOLUSDT", "CTSIUSDT", "ZILUSDT", "ZRXUSDT", "FETUSDT", "BATUSDT",
+      "ZECUSDT", "IOSTUSDT", "CELRUSDT", "DASHUSDT", "THETAUSDT", "ENJUSDT", "ATOMUSDT", "TFUELUSDT",
+      "ONEUSDT", "ALGOUSDT", "DOGEUSDT", "DUSKUSDT", "ANKRUSDT", "WINUSDT", "MTLUSDT", "CVCUSDT",
+      "BTCUSDT", "ETHUSDT", "BNBUSDT", "NEOUSDT", "LTCUSDT", "QTUMUSDT", "ADAUSDT", "XRPUSDT",
+      "TUSDUSDT", "IOTAUSDT", "XLMUSDT", "ONTUSDT", "TRXUSDT", "ETCUSDT", "ICXUSDT", "VETUSDT",
+      "USDCUSDT", "LINKUSDT", "ONGUSDT", "HOTUSDT"
+    ];
+}
+
 async function tryAutoswitchSymbolToAvailableFunds(client: any): Promise<string | null> {
     try {
-        const accountRes = await client.account();
-        const balances = accountRes.data.balances || [];
+        let balances: { asset: string; free: string }[] = [];
+        if (client) {
+            const accountRes = await client.account();
+            balances = accountRes.data.balances || [];
+        } else {
+            balances = simulatedWallet.spot.map(s => ({ asset: s.asset, free: s.free }));
+        }
         
         const candidates: { asset: string; free: number; usdValue: number }[] = [];
+        const minUsdValue = 5.0;
         
         for (const b of balances) {
             const free = parseFloat(b.free);
@@ -863,13 +943,27 @@ async function tryAutoswitchSymbolToAvailableFunds(client: any): Promise<string 
                 usdValue = free * 1.08;
             } else {
                 try {
-                    const priceRes = await client.tickerPrice(`${asset}USDT`);
-                    const price = parseFloat(priceRes.data.price);
+                    let price = 0;
+                    if (client) {
+                        const priceRes = await client.tickerPrice(`${asset}USDT`);
+                        price = parseFloat(priceRes.data.price);
+                    } else {
+                        const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset}USDT`);
+                        const data = await res.json();
+                        price = parseFloat(data.price);
+                    }
                     usdValue = free * price;
                 } catch (e) {
                     try {
-                        const priceRes = await client.tickerPrice(`${asset}USDC`);
-                        const price = parseFloat(priceRes.data.price);
+                        let price = 0;
+                        if (client) {
+                            const priceRes = await client.tickerPrice(`${asset}USDC`);
+                            price = parseFloat(priceRes.data.price);
+                        } else {
+                            const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset}USDC`);
+                            const data = await res.json();
+                            price = parseFloat(data.price);
+                        }
                         usdValue = free * price;
                     } catch (e2) {
                         usdValue = 0;
@@ -877,19 +971,19 @@ async function tryAutoswitchSymbolToAvailableFunds(client: any): Promise<string 
                 }
             }
             
-            if (usdValue >= 10.0) {
+            if (usdValue >= minUsdValue) {
                 candidates.push({ asset, free, usdValue });
             }
         }
         
         if (candidates.length === 0) {
-            console.log("[Auto Switch] Ingen Spot-beholdninger med tilstrækkelig værdi (> $10) fundet.");
+            console.log(`[Auto Switch] Ingen Spot-beholdninger med tilstrækkelig værdi (>${minUsdValue} USD) fundet. Balances:`, balances);
             return null;
         }
         
         // Sort candidates by USD value descending
         candidates.sort((a, b) => b.usdValue - a.usdValue);
-        console.log("[Auto Switch] Fundne saldi over $10:", candidates.map(c => `${c.asset}: $${c.usdValue.toFixed(2)}`).join(', '));
+        console.log(`[Auto Switch] Fundne saldi over ${minUsdValue} USD:`, candidates.map(c => `${c.asset}: $${c.usdValue.toFixed(2)}`).join(', '));
         
         const bestAssetObj = candidates[0];
         const bestAsset = bestAssetObj.asset;
@@ -907,10 +1001,7 @@ async function tryAutoswitchSymbolToAvailableFunds(client: any): Promise<string 
         
         let targetSymbol: string | null = null;
         
-        const CRYPTO_PAIRS = [
-          "BTCUSDT", "BTCUSDC", "ETHUSDT", "ETHUSDC", "SOLUSDC", "SOLUSDT", 
-          "SOLBTC", "SOLEUR", "SOLBNB", "BNBUSDT", "DOGEUSDT"
-        ];
+        const CRYPTO_PAIRS = await getBinanceSpotPairs();
         
         // Case 1: Best asset is a quote asset (USDT, USDC, EUR, BTC, BNB)
         const isQuoteAsset = ['USDT', 'USDC', 'EUR', 'BTC', 'BNB'].includes(bestAsset);
@@ -1409,84 +1500,175 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                 botState.lastTradeTime = now;
                 
                 if (botState.isLiveTrading) {
+                   let entryResult;
                    try {
-                      const entryResult = await executeTradeInternal(botState.symbol, 'BUY', tradeAllocation);
-                      botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: entryResult.price || currentP, time: now, status: 'LIVE', maxProfitPct: 0, entryOrderId: entryResult.orderId, entryFee: entryResult.fee });
-                      botState.activePositions = botState.activePositionsList.length;
-                      saveBotState();
+                      entryResult = await executeTradeInternal(botState.symbol, 'BUY', tradeAllocation);
                    } catch (e: any) {
                       console.warn("Live entry failed", e);
                       
-                      // Attempt to automatically switch to a trading pair with available funds
-                      let autoSwitched = false;
-                      try {
-                          const apiKey = botState.userApiKey || process.env.BINANCE_API_KEY;
-                          const apiSecret = botState.userApiSecret || process.env.BINANCE_API_SECRET;
-                          if (apiKey && apiSecret) {
-                              const clientInstance = new Spot(apiKey, apiSecret);
-                              const newSymbol = await tryAutoswitchSymbolToAvailableFunds(clientInstance);
-                              if (newSymbol) {
-                                  const oldSymbol = botState.symbol;
-                                  const switchMsg = `Skiftede automatisk handelspar fra ${oldSymbol} til ${newSymbol} på grund af manglende dækning eller værdi under mindstegrænsen.`;
-                                  console.log(`[Auto Switch] ${switchMsg}`);
-                                  botState.lastError = switchMsg;
-                                  botState.lastErrorTime = Date.now();
-                                  
-                                  botState.orderHistory.unshift({
-                                     id: `SWT-${Date.now().toString().slice(-6)}`,
-                                     symbol: `${oldSymbol}->${newSymbol}`,
-                                     type: 'AUTO_SWITCH',
-                                     pnl: 0,
-                                     time: new Date(),
-                                     duration: 'Automatisk skift udført'
-                                  });
-                                  
-                                  autoSwitched = true;
-                                  
-                                  // Restart bot asynchronously with the new symbol
-                                  setTimeout(async () => {
-                                      try {
-                                          await startBot(
-                                              newSymbol,
-                                              botState.allocation,
-                                              botState.isLiveTrading,
-                                              botState.takeProfit,
-                                              botState.stopLoss,
-                                              botState.strategy,
-                                              botState.useTrailingStop,
-                                              botState.dynamicSizing,
-                                              botState.maxRiskPerTrade,
-                                              botState.diversifySectors,
-                                              botState.stopLossType,
-                                              botState.autoAdjustVolatility,
-                                              botState.useNewsSentiment,
-                                              botState.circuitBreakerLimit,
-                                              botState.enableDCA,
-                                              botState.dcaIntervalHours,
-                                              botState.dcaAllocation,
-                                              botState.enableAutoStopLoss
-                                          );
-                                      } catch (restartErr: any) {
-                                          console.error("[Auto Switch] Kunne ikke genstarte bot med nyt handelspar:", restartErr);
-                                      }
-                                  }, 1000);
+                      const errLower = (e.message || "").toLowerCase();
+                      const isBalanceOrUnderMinError = errLower.includes("balance") || errLower.includes("saldo") || errLower.includes("minimumsgrænse") || errLower.includes("insufficient");
+                      
+                      let emergencyRebalanced = false;
+                      if (isBalanceOrUnderMinError) {
+                          let solPrice = currentP;
+                          const qAsset = botState.symbol.endsWith('USDC') ? 'USDC' : 'USDT';
+                          const solPair = `SOL${qAsset}`;
+                          if (!botState.symbol.startsWith('SOL')) {
+                              try {
+                                  const apiKey = botState.userApiKey || process.env.BINANCE_API_KEY;
+                                  const apiSecret = botState.userApiSecret || process.env.BINANCE_API_SECRET;
+                                  if (apiKey && apiSecret) {
+                                      const clientInstance = new Spot(apiKey, apiSecret);
+                                      const solTicker = await clientInstance.tickerPrice(solPair);
+                                      solPrice = parseFloat(solTicker.data.price);
+                                  }
+                              } catch (solPriceErr) {
+                                  console.warn("Could not fetch SOL price for emergency rebalance:", solPriceErr);
                               }
                           }
-                      } catch (switchErr) {
-                          console.error("[Auto Switch] Fejl under forsøg på automatisk skift:", switchErr);
+                          
+                          const solPosIndex = botState.activePositionsList.findIndex((pos: any) => {
+                              const isSol = botState.symbol.startsWith('SOL') || pos.assetName === 'SOL' || pos.symbol?.startsWith('SOL') || pos.symbol === 'SOLUSDT' || pos.symbol === 'SOLUSDC';
+                              if (!isSol) return false;
+                              const entryPrice = pos.price || 1;
+                              const currentVal = (solPrice / entryPrice) * botState.allocation;
+                              return currentVal > botState.allocation;
+                          });
+                          
+                          if (solPosIndex !== -1) {
+                              const solPos = botState.activePositionsList[solPosIndex];
+                              console.log(`[Emergency] SOL position found (entry: ${solPos.price}, current: ${solPrice}). Over allocation: ${solPrice > solPos.price}. Executing Emergency Rebalance SELL!`);
+                              try {
+                                  const exitResult = await executeTradeInternal(solPair, 'SELL', botState.allocation);
+                                  const finalExitPrice = exitResult.price || solPrice;
+                                  const entryFee = solPos.entryFee || 0;
+                                  const totalFee = entryFee + (exitResult.fee || 0);
+                                  const rawPnl = (finalExitPrice - solPos.price) * (botState.allocation / solPos.price);
+                                  const netPnl = rawPnl - totalFee;
+                                  
+                                  botState.orderHistory.unshift({
+                                      id: `EMG-${solPos.id || Date.now().toString().slice(-6)}`,
+                                      symbol: solPair,
+                                      type: 'EMERGENCY_REBALANCE_SELL',
+                                      pnl: netPnl,
+                                      time: new Date(),
+                                      duration: `${Math.floor((now - solPos.time) / 1000)}s`,
+                                      entryPrice: solPos.price,
+                                      exitPrice: finalExitPrice,
+                                      profitPercent: ((finalExitPrice - solPos.price) / solPos.price) * 100,
+                                      fee: totalFee,
+                                      txHash: exitResult.txHash
+                                  });
+                                  
+                                  botState.activePositionsList.splice(solPosIndex, 1);
+                                  botState.activePositions = botState.activePositionsList.length;
+                                  
+                                  const msg = `Udførte "Emergency Rebalance SELL" for ${solPair} (Entry: ${solPos.price}, Exit: ${finalExitPrice}, PnL: ${netPnl.toFixed(2)} USDT) på grund af "insufficient balance" ved nyt købsforsøg.`;
+                                  console.log(`[Emergency] ${msg}`);
+                                  botState.lastError = msg;
+                                  botState.lastErrorTime = Date.now();
+                                  
+                                  try {
+                                      saveBotState();
+                                      saveWallet();
+                                  } catch (saveErr) {
+                                      console.error("[Save error] Kunne ikke gemme bot-tilstand efter emergency rebalance:", saveErr);
+                                  }
+                                  emergencyRebalanced = true;
+                                  
+                                  try {
+                                      const retryEntryResult = await executeTradeInternal(botState.symbol, 'BUY', tradeAllocation);
+                                      entryResult = retryEntryResult;
+                                  } catch (retryErr: any) {
+                                      console.warn("[Emergency] Retry BUY failed after emergency rebalance:", retryErr);
+                                  }
+                              } catch (sellErr: any) {
+                                  console.error("[Emergency] Failed to execute Emergency Rebalance SELL:", sellErr);
+                              }
+                          }
                       }
                       
-                      if (!autoSwitched) {
-                          botState.orderHistory.unshift({
-                             id: `ERR-${Date.now().toString().slice(-6)}`,
-                             symbol: botState.symbol.replace(/USDT|USDC/g, ''),
-                             type: 'FAILED BUY',
-                             pnl: 0,
-                             time: new Date(),
-                             duration: e.message || 'Error'
-                          });
-                          botState.isActive = false; // Stop the bot so the user notices
+                      if (!entryResult && !emergencyRebalanced) {
+                          let autoSwitched = false;
+                          try {
+                              const apiKey = botState.userApiKey || process.env.BINANCE_API_KEY;
+                              const apiSecret = botState.userApiSecret || process.env.BINANCE_API_SECRET;
+                              if (apiKey && apiSecret) {
+                                  const clientInstance = new Spot(apiKey, apiSecret);
+                                  const newSymbol = await tryAutoswitchSymbolToAvailableFunds(clientInstance);
+                                  if (newSymbol) {
+                                      const oldSymbol = botState.symbol;
+                                      const switchMsg = `Skiftede automatisk handelspar fra ${oldSymbol} til ${newSymbol} på grund af manglende dækning eller værdi under mindstegrænsen.`;
+                                      console.log(`[Auto Switch] ${switchMsg}`);
+                                      botState.lastError = switchMsg;
+                                      botState.lastErrorTime = Date.now();
+                                      
+                                      botState.orderHistory.unshift({
+                                         id: `SWT-${Date.now().toString().slice(-6)}`,
+                                         symbol: `${oldSymbol}->${newSymbol}`,
+                                         type: 'AUTO_SWITCH',
+                                         pnl: 0,
+                                         time: new Date(),
+                                         duration: 'Automatisk skift udført'
+                                      });
+                                      
+                                      autoSwitched = true;
+                                      
+                                      setTimeout(async () => {
+                                          try {
+                                              await startBot(
+                                                  newSymbol,
+                                                  botState.allocation,
+                                                  botState.isLiveTrading,
+                                                  botState.takeProfit,
+                                                  botState.stopLoss,
+                                                  botState.strategy,
+                                                  botState.useTrailingStop,
+                                                  botState.dynamicSizing,
+                                                  botState.maxRiskPerTrade,
+                                                  botState.diversifySectors,
+                                                  botState.stopLossType,
+                                                  botState.autoAdjustVolatility,
+                                                  botState.useNewsSentiment,
+                                                  botState.circuitBreakerLimit,
+                                                  botState.enableDCA,
+                                                  botState.dcaIntervalHours,
+                                                  botState.dcaAllocation,
+                                                  botState.enableAutoStopLoss
+                                              );
+                                          } catch (restartErr: any) {
+                                              console.error("[Auto Switch] Kunne ikke genstarte bot med nyt handelspar:", restartErr);
+                                          }
+                                      }, 1000);
+                                  }
+                              }
+                          } catch (switchErr) {
+                              console.error("[Auto Switch] Fejl under forsøg på automatisk skift:", switchErr);
+                          }
+                          
+                          if (!autoSwitched) {
+                              botState.orderHistory.unshift({
+                                 id: `ERR-${Date.now().toString().slice(-6)}`,
+                                 symbol: botState.symbol.replace(/USDT|USDC/g, ''),
+                                 type: 'FAILED BUY',
+                                 pnl: 0,
+                                 time: new Date(),
+                                 duration: e.message || 'Error'
+                              });
+                              botState.isActive = false;
+                              saveBotState();
+                          }
+                      }
+                   }
+
+                   if (entryResult) {
+                      botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: entryResult.price || currentP, time: now, status: 'LIVE', maxProfitPct: 0, entryOrderId: entryResult.orderId, entryFee: entryResult.fee });
+                      botState.activePositions = botState.activePositionsList.length;
+                      try {
                           saveBotState();
+                      } catch (saveErr) {
+                          console.error("[Save error] Kunne ikke gemme bot-tilstand efter succesfuld entry:", saveErr);
                       }
                    }
                 } else {
@@ -1504,7 +1686,65 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
                        saveBotState();
                        saveWallet();
                    } else {
-                       botState.lastTradeTime = now + 5000; // Delay retry
+                       console.log(`[Sim] Paper buy failed due to low simulated balance. Attempting paper auto switch...`);
+                       botState.lastTradeTime = now;
+                       
+                       let autoSwitched = false;
+                       try {
+                           const newSymbol = await tryAutoswitchSymbolToAvailableFunds(null);
+                           if (newSymbol) {
+                               const oldSymbol = botState.symbol;
+                               const switchMsg = `[Sim] Skiftede automatisk simuleret handelspar fra ${oldSymbol} til ${newSymbol} på grund af manglende dækning eller værdi under mindstegrænsen i simuleret wallet.`;
+                               console.log(`[Auto Switch Sim] ${switchMsg}`);
+                               botState.lastError = switchMsg;
+                               botState.lastErrorTime = Date.now();
+                               
+                               botState.orderHistory.unshift({
+                                  id: `SWT-${Date.now().toString().slice(-6)}`,
+                                  symbol: `${oldSymbol}->${newSymbol}`,
+                                  type: 'AUTO_SWITCH',
+                                  pnl: 0,
+                                  time: new Date(),
+                                  duration: 'Simuleret automatisk skift udført'
+                                });
+                               
+                               autoSwitched = true;
+                               
+                               // Restart bot asynchronously with the new symbol
+                               setTimeout(async () => {
+                                   try {
+                                       await startBot(
+                                           newSymbol,
+                                           botState.allocation,
+                                           botState.isLiveTrading,
+                                           botState.takeProfit,
+                                           botState.stopLoss,
+                                           botState.strategy,
+                                           botState.useTrailingStop,
+                                           botState.dynamicSizing,
+                                           botState.maxRiskPerTrade,
+                                           botState.diversifySectors,
+                                           botState.stopLossType,
+                                           botState.autoAdjustVolatility,
+                                           botState.useNewsSentiment,
+                                           botState.circuitBreakerLimit,
+                                           botState.enableDCA,
+                                           botState.dcaIntervalHours,
+                                           botState.dcaAllocation,
+                                           botState.enableAutoStopLoss
+                                       );
+                                   } catch (restartErr: any) {
+                                       console.error("[Auto Switch Sim] Kunne ikke genstarte bot med nyt handelspar:", restartErr);
+                                   }
+                               }, 1000);
+                           }
+                        } catch (switchErr) {
+                           console.error("[Auto Switch Sim] Fejl under forsøg på automatisk skift:", switchErr);
+                        }
+                        
+                        if (!autoSwitched) {
+                            botState.lastTradeTime = now + 5000; // Delay retry if no auto switch possible
+                        }
                    }
                 }
               }
@@ -3241,6 +3481,9 @@ app.post("/api/binance/execute", async (req, res) => {
 });
 
 async function executePaperTrade(symbol: string, side: 'BUY' | 'SELL', allocation: number) {
+  if (allocation < 10) {
+    throw new Error("Minimumsbeløb for handel er 10 USDT.");
+  }
   // Fetch current price
   let currentPrice = 0;
   try {

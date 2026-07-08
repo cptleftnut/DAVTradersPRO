@@ -22,6 +22,7 @@ import { FearAndGreedIndex } from "./components/FearAndGreedIndex";
 import { SystemHealthMonitor } from "./components/SystemHealthMonitor";
 import { GeminiChat } from "./components/GeminiChat";
 import { AuditTrail } from "./components/AuditTrail";
+import { QuickActionsMenu } from "./components/QuickActionsMenu";
 import { initAuth } from "./lib/auth";
 import { User } from "firebase/auth";
 import { useTheme } from "./lib/ThemeContext";
@@ -538,6 +539,7 @@ export default function App() {
         </div>
       </div>
       <GeminiChat />
+      <QuickActionsMenu />
 
       {/* Fullscreen Overlay Modal for Compact View Widget Details */}
       <AnimatePresence>

@@ -22,8 +22,8 @@ const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTak
     const allocUsed = pos.actualAlloc || allocation;
     const rawPnl = allocUsed * (simProfitPct / 100);
     
-    const [tp, setTp] = React.useState(pos.takeProfit !== undefined ? pos.takeProfit : globalTakeProfit);
-    const [sl, setSl] = React.useState(pos.stopLoss !== undefined ? pos.stopLoss : globalStopLoss);
+    const [tp, setTp] = React.useState(pos.takeProfit ?? globalTakeProfit ?? 0);
+    const [sl, setSl] = React.useState(pos.stopLoss ?? globalStopLoss ?? 0);
     const [isSaving, setIsSaving] = React.useState(false);
 
     const handleSave = async () => {
@@ -70,8 +70,8 @@ const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTak
                    <label className="text-[9px] text-gray-500 block mb-1">Take Profit (%)</label>
                    <input 
                       type="number" 
-                      value={tp} 
-                      onChange={(e) => setTp(Number(e.target.value))}
+                      value={tp ?? ''} 
+                      onChange={(e) => setTp(e.target.value === '' ? 0 : Number(e.target.value))}
                       className="w-full bg-gray-900 border border-gray-800 text-emerald-400 rounded p-1 text-xs" 
                    />
                 </div>
@@ -79,8 +79,8 @@ const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTak
                    <label className="text-[9px] text-gray-500 block mb-1">Stop Loss (%)</label>
                    <input 
                       type="number" 
-                      value={sl} 
-                      onChange={(e) => setSl(Number(e.target.value))}
+                      value={sl ?? ''} 
+                      onChange={(e) => setSl(e.target.value === '' ? 0 : Number(e.target.value))}
                       className="w-full bg-gray-900 border border-gray-800 text-rose-400 rounded p-1 text-xs" 
                    />
                 </div>
@@ -1260,12 +1260,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   };
 
   // Derived stats
-  const totalTrades = orderHistory.length;
-  const winningTrades = orderHistory.filter(o => o.pnl >= 0).length;
+  const totalTrades = orderHistory?.length || 0;
+  const winningTrades = orderHistory?.filter(o => o.pnl >= 0)?.length || 0;
   const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
   
   let avgHoldSeconds = 0;
-  if (orderHistory.length > 0) {
+  if ((orderHistory?.length || 0) > 0) {
     let totalSeconds = 0;
     orderHistory.forEach(o => {
       if (typeof o.duration === 'string') {
@@ -2007,9 +2007,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         return;
     }
 
-    if (newState && allocation < 1) {
-        addLog("Minimum order size is 1 USDT.", "error");
-        toast.error("Minimum order size is 1 USDT.");
+    if (newState && allocation < 10) {
+        addLog("Minimumsbeløb for handel er 10 USDT.", "error");
+        toast.error("Minimumsbeløb for handel er 10 USDT.");
         return;
     }
 
@@ -2111,8 +2111,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   const confirmTrade = async () => {
     if (!pendingTrade) return;
     const { side, quantity, orderType } = pendingTrade;
-    if (isLiveTrading && quantity < 10) {
-        addLog("Minimum order size is 10 USDT.", "error");
+    if (quantity < 10) {
+        addLog("Minimumsbeløb for handel er 10 USDT.", "error");
         setShowConfirmation(false);
         return;
     }
@@ -2262,9 +2262,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   };
 
   const handleDeploy = async () => {
-    if (allocation < 1) {
-        addLog("Minimum order size is 1 USDT.", "error");
-        toast.error("Minimum order size is 1 USDT.");
+    if (allocation < 10) {
+        addLog("Minimumsbeløb for handel er 10 USDT.", "error");
+        toast.error("Minimumsbeløb for handel er 10 USDT.");
         return;
     }
     addLog(`AI Execution parameters updated for ${symbol}. Strategy: ${strategy}`, 'info');
@@ -3141,7 +3141,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Maks. Allokering / Handel</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-sm">$</span>
-                  <input type="text" inputMode="decimal" value={String(allocation).replace('.', ',')} onChange={(e) => { const rawValue = e.target.value.replace(',', '.'); setAllocation(parseFloat(rawValue) || 0); }} className="w-full bg-gray-950 border border-gray-800 text-white rounded-xl py-3 pl-8 pr-4 focus:ring-2 focus:ring-amber-500 font-mono text-sm" />
+                  <input type="text" inputMode="decimal" value={allocation !== undefined ? String(allocation).replace('.', ',') : ''} onChange={(e) => { const rawValue = e.target.value.replace(',', '.'); setAllocation(parseFloat(rawValue) || 0); }} className="w-full bg-gray-950 border border-gray-800 text-white rounded-xl py-3 pl-8 pr-4 focus:ring-2 focus:ring-amber-500 font-mono text-sm" />
                 </div>
               </div>
               <div>
@@ -3158,12 +3158,12 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 font-mono text-xs">+</span>
-                    <input type="number" value={takeProfit} onChange={(e) => setTakeProfit(Number(e.target.value))} className="w-full bg-gray-950 border border-gray-800 text-emerald-500 rounded-xl py-3 pl-7 pr-3 focus:ring-2 focus:ring-amber-500 font-mono text-sm" />
+                    <input type="number" value={takeProfit ?? ''} onChange={(e) => setTakeProfit(e.target.value === '' ? 0 : Number(e.target.value))} className="w-full bg-gray-950 border border-gray-800 text-emerald-500 rounded-xl py-3 pl-7 pr-3 focus:ring-2 focus:ring-amber-500 font-mono text-sm" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 font-mono text-xs">%</span>
                   </div>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-500 font-mono text-xs">-</span>
-                    <input type="number" value={stopLoss} onChange={(e) => setStopLoss(Number(e.target.value))} className="w-full bg-gray-950 border border-gray-800 text-rose-500 rounded-xl py-3 pl-7 pr-7 focus:ring-2 focus:ring-amber-500 font-mono text-sm" />
+                    <input type="number" value={stopLoss ?? ''} onChange={(e) => setStopLoss(e.target.value === '' ? 0 : Number(e.target.value))} className="w-full bg-gray-950 border border-gray-800 text-rose-500 rounded-xl py-3 pl-7 pr-7 focus:ring-2 focus:ring-amber-500 font-mono text-sm" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 font-mono text-xs">{stopLossType === 'percentage' ? '%' : '$'}</span>
 
                   </div>
