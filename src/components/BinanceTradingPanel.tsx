@@ -234,14 +234,20 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
 
   const saveKeys = async () => {
     try {
-      await fetch('/api/bot/keys', {
+      const res = await fetch('/api/bot/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret })
       });
-      addLog("API nøgler gemt!", "info");
+      if (res.ok) {
+        addLog("API nøgler gemt!", "info");
+        toast.success("Mæglernøglerne blev gemt på din konto!");
+      } else {
+        throw new Error();
+      }
     } catch (e) {
       addLog("Fejl ved lagring af nøgler", "error");
+      toast.error("Kunne ikke gemme API-nøglerne.");
     }
   }
 
@@ -1018,6 +1024,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
           setIsLiveTrading(state.isLiveTrading);
           setSymbol(state.symbol || 'BTCUSDT');
           setServerSymbol(state.symbol || '');
+          if (state.userApiKey) setApiKey(state.userApiKey);
+          if (state.userApiSecret) setApiSecret(state.userApiSecret);
           setAllocation(state.allocation || 10);
           setTakeProfit(state.takeProfit || 10.0);
           setStopLoss(state.stopLoss || 5.0);
@@ -5332,7 +5340,43 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                  </div>
               </div>
               <button className="text-xs text-gray-500 hover:text-white transition-colors underline">Konf.</button>
-           </div>
+            </div>
+
+            {/* API Nøgler Indtastning */}
+            <div className="mt-4 space-y-3.5 p-4 bg-gray-950/40 backdrop-blur-md rounded-2xl border border-white/5 shadow-inner">
+               <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mægler API Nøgler</span>
+                  {apiKey && apiSecret && (
+                     <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Gemt på konto</span>
+                  )}
+               </div>
+               
+               <div className="space-y-2.5">
+                  <div className="relative">
+                     <input 
+                       type="text" 
+                       placeholder="Indtast API Key (Binance)"
+                       value={apiKey}
+                       onChange={e => setApiKey(e.target.value)}
+                       className="w-full bg-black/60 text-xs text-white p-2.5 rounded-xl border border-white/10 focus:border-amber-500/50 focus:outline-none transition-colors font-mono"
+                     />
+                  </div>
+                  <div className="relative">
+                     <input 
+                       type="password"
+                       placeholder="Indtast Secret Key (Binance)"
+                       value={apiSecret}
+                       onChange={e => setApiSecret(e.target.value)}
+                       className="w-full bg-black/60 text-xs text-white p-2.5 rounded-xl border border-white/10 focus:border-amber-500/50 focus:outline-none transition-colors font-mono"
+                     />
+                  </div>
+                  <button 
+                    onClick={saveKeys}
+                    className="w-full text-xs font-bold bg-amber-500 hover:bg-amber-400 text-gray-950 py-2.5 rounded-xl transition-all duration-300 uppercase tracking-wider active:scale-[0.98]"
+                  >
+                    GEM MÆGLERNØGLER
+                  </button>
+               </div></div>
            
 
             {/* Paper Trading Mode toggle */}

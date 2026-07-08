@@ -55,6 +55,9 @@ if (!getApps().length) {
 const db = getFirestore(firebaseApp, (firebaseConfig as any).firestoreDatabaseId !== '(default)' ? (firebaseConfig as any).firestoreDatabaseId : undefined);
 
 async function getBinanceCredentials(reqOrUid: any, fallbackHeaders?: any, requireLive?: boolean) {
+  if (typeof botState !== 'undefined' && botState && botState.userApiKey && botState.userApiSecret) {
+    return { apiKey: botState.userApiKey, apiSecret: botState.userApiSecret, source: 'botState' };
+  }
   if (fallbackHeaders) {
     if (fallbackHeaders['x-binance-api-key'] && fallbackHeaders['x-binance-api-secret']) {
        return { apiKey: fallbackHeaders['x-binance-api-key'], apiSecret: fallbackHeaders['x-binance-api-secret'], source: 'headers' };
@@ -571,14 +574,20 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
 
     let orderData;
     try {
-      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: formattedAllocation.toString() });
+      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: formattedAllocation.toString(), recvWindow: 60000 });
       orderData = orderRes.data;
     } catch (err: any) {
       console.error("DEBUG: Binance raw error:", err);
       if (err.response) {
           console.error("DEBUG: Binance response data:", err.response.data);
       }
-      const errMsg = `Binance Order Error: ${err.message || (err.response?.data ? JSON.stringify(err.response.data) : null) || err}`;
+      let details = "";
+      if (err.response?.status === 401 || err.message?.includes("401")) {
+         details = "Binance API-nøglerne er ugyldige eller uautoriserede (401 Unauthorized). Kontroller venligst dine gemte mæglernøgler på din konto.";
+      } else {
+         details = err.response?.data?.msg || err.message || (err.response?.data ? JSON.stringify(err.response.data) : null) || err;
+      }
+      const errMsg = `Binance Order Error: ${details}`;
       botState.lastError = errMsg;
       botState.lastErrorTime = Date.now();
       throw new Error(errMsg);
@@ -1138,7 +1147,7 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
        // Trigger a mock entry
        const now = Date.now();
        const targetQuote = botState.symbol.endsWith('USDC') ? 'USDC' : (botState.symbol.endsWith('BTC') ? 'BTC' : (botState.symbol.endsWith('ETH') ? 'ETH' : (botState.symbol.endsWith('BNB') ? 'BNB' : 'USDT')));
-       const assetName = botState.symbol.replace(new RegExp(), '');
+       const assetName = botState.symbol.replace(new RegExp(`${targetQuote}$`), '');
        const actualAlloc = simulateBuyAsset(assetName, targetQuote, botState.allocation, currentP);
        if (actualAlloc > 0) {
           botState.activePositionsList.push({ id: Math.random().toString(36).substring(7), price: currentP, time: now, status: 'LIVE', actualAlloc, quoteAsset: targetQuote, assetName });
@@ -1204,7 +1213,11 @@ app.post('/api/bot/keys', async (req, res) => {
   const { apiKey, apiSecret } = req.body;
   botState.userApiKey = apiKey;
   botState.userApiSecret = apiSecret;
-  await saveBotState();
+  try {
+    await setDoc(doc(db, 'systemState', 'botConfig'), botState);
+  } catch (err) {
+    console.error("[Firebase] Error saving bot keys immediately:", err);
+  }
   res.json({ success: true });
 });
 
@@ -1288,12 +1301,15 @@ app.post('/api/bot/update', async (req, res) => {
 
    // Refetch credentials if live trading is requested or updated
    if (isLiveTrading !== false && (isLiveTrading === true || botState.isLiveTrading)) {
-      const creds = await getBinanceCredentials(req, req.headers, true);
-      if (creds.apiKey) botState.userApiKey = creds.apiKey;
-      if (creds.apiSecret) botState.userApiSecret = creds.apiSecret;
-   } else {
-      delete botState.userApiKey;
-      delete botState.userApiSecret;
+      try {
+         const creds = await getBinanceCredentials(req, req.headers, true);
+         if (creds.apiKey) botState.userApiKey = creds.apiKey;
+         if (creds.apiSecret) botState.userApiSecret = creds.apiSecret;
+      } catch (err) {
+         if (!botState.userApiKey || !botState.userApiSecret) {
+            throw err;
+         }
+      }
    }
    
    } catch (error: any) {
@@ -2531,7 +2547,7 @@ app.get("/api/binance/health", async (req, res) => {
     // For now we'll do a simple spot client check
     const client = new Spot(creds.apiKey, creds.apiSecret);
     try {
-      await client.account();
+      await client.account({ recvWindow: 60000 });
       return res.json({ status: 'ok', message: 'API-nøgler er gyldige og forbundet.', source: creds.source });
     } catch (apiError: any) {
       return res.json({ status: 'invalid', message: 'Kunne ikke validere nøglerne med Binance. Tjek tilladelser.', error: apiError.message });
@@ -2562,7 +2578,7 @@ app.get("/api/binance/wallet", async (req, res) => {
     // Fetch Spot Balances
     let spotBalances = [];
     try {
-      const spotRes = await client.account();
+      const spotRes = await client.account({ recvWindow: 60000 });
       const spotData = spotRes.data;
       spotBalances = spotData.balances.filter((b: any) => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0);
     } catch (err: any) {
@@ -2572,7 +2588,7 @@ app.get("/api/binance/wallet", async (req, res) => {
     // Fetch Flexible Earn Balances
     let earnBalances: any[] = [];
     try {
-      const earnRes = await client.getFlexibleProductPosition();
+      const earnRes = await client.getFlexibleProductPosition({ recvWindow: 60000 });
       const earnData = earnRes.data;
       if (earnData && earnData.rows) {
          earnBalances = earnData.rows;
@@ -2622,11 +2638,17 @@ app.post("/api/binance/execute", async (req, res) => {
     
     // Execute real market order
     try {
-      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quantity });
+      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quantity, recvWindow: 60000 });
       const orderData = orderRes.data;
       res.json(orderData);
     } catch (err: any) {
-      throw new Error(`Binance Order Error: ${err.message || err.response?.data?.msg || err}`);
+      let details = "";
+      if (err.response?.status === 401 || err.message?.includes("401")) {
+         details = "Binance API-nøglerne er ugyldige eller uautoriserede (401 Unauthorized). Kontroller venligst dine gemte mæglernøgler på din konto.";
+      } else {
+         details = err.response?.data?.msg || err.message || err;
+      }
+      throw new Error(`Binance Order Error: ${details}`);
     }
 
   } catch (error: any) {
@@ -3059,8 +3081,11 @@ async function startServer() {
   app.get("/api/wallet", async (req, res) => {
     try {
       const credentials = await getBinanceCredentials(null, req.headers);
+      if (credentials.source === 'demo') {
+        return res.json({ balances: simulatedWallet.spot.map(b => ({ asset: b.asset, free: b.free, locked: b.locked })) });
+      }
       const client = new Spot(credentials.apiKey, credentials.apiSecret);
-      const response = await client.account();
+      const response = await client.account({ recvWindow: 60000 });
       res.json(response.data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch wallet data" });
