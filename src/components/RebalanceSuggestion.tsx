@@ -107,6 +107,28 @@ export const RebalanceSuggestion: React.FC = () => {
           const qty = parseFloat(s.free) + parseFloat(s.locked);
           const price = priceMap.get(s.asset) ?? 1;
           
+        const fetchAssetPrice = async (asset: string) => {
+          if (asset === "USDT" || asset === "USDC") return 1;
+          try {
+            const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${asset}USDT`);
+            if (pRes.ok) {
+              const json = await pRes.json();
+              return parseFloat(json.price);
+            }
+          } catch (e) {}
+          return 1;
+        };
+
+        const assetsWithPrices = await Promise.all(
+          relevantAssets.map(async (s: any) => {
+            const qty = parseFloat(s.free) + parseFloat(s.locked);
+            const price = await fetchAssetPrice(s.asset);
+            return { s, qty, price };
+          })
+        );
+
+        for (const item of assetsWithPrices) {
+          const { s, qty, price } = item;
           const val = qty * price;
           totalUsdtValue += val;
           newHoldings.push({
@@ -130,6 +152,25 @@ export const RebalanceSuggestion: React.FC = () => {
                price: priceMap.get(t.asset) ?? 1
            });
         }
+        for (const t of activeTargets) {
+           if (!newHoldings.find(h => h.asset === t.asset)) {
+               newHoldings.push({
+                   asset: t.asset,
+                   weight: 0,
+                   targetWeight: t.targetWeight,
+                   value: 0,
+                   currentQty: 0,
+                   price: 1 // We'd ideally fetch this, but for USDT it's 1. For others, let's fetch.
+               });
+           }
+        }
+        
+        // Fetch prices for zero balance targets concurrently
+        await Promise.all(newHoldings.map(async (h) => {
+           if (h.value === 0 && h.asset !== "USDT" && h.asset !== "USDC") {
+               h.price = await fetchAssetPrice(h.asset);
+           }
+        }));
         
         if (totalUsdtValue > 0) {
           newHoldings = newHoldings

@@ -79,7 +79,7 @@ export function PortfolioRebalancer({
         (s: any) => parseFloat(s.free) > 0 || parseFloat(s.locked) > 0,
       );
 
-      for (const s of relevantAssets) {
+      const promises = relevantAssets.map(async (s: any) => {
         const qty = parseFloat(s.free) + parseFloat(s.locked);
         let price = 1;
 
@@ -97,10 +97,16 @@ export function PortfolioRebalancer({
           }
         }
 
+        return { asset: s.asset, qty, price };
+      });
+
+      const results = await Promise.all(promises);
+
+      for (const { asset, qty, price } of results) {
         const val = qty * price;
         totalUsdtValue += val;
         newHoldings.push({
-          asset: s.asset,
+          asset,
           weight: 0,
           targetWeight: 0,
           value: val,
@@ -199,7 +205,7 @@ export function PortfolioRebalancer({
         return;
       }
 
-      for (const trade of allTrades) {
+      const executeTrade = async (trade: { side: string, symbol: string, allocation: number }) => {
         toast.loading(`Udfører ${trade.side} ${trade.symbol}...`, {
           id: trade.symbol,
         });
@@ -223,8 +229,16 @@ export function PortfolioRebalancer({
             id: trade.symbol,
           });
         }
-        // Small delay to simulate sequential execution
-        await new Promise((r) => setTimeout(r, 500));
+      };
+
+      // Execute ALL sells concurrently first to free up capital
+      if (sells.length > 0) {
+        await Promise.all(sells.map(executeTrade));
+      }
+
+      // Then execute ALL buys concurrently
+      if (buys.length > 0) {
+        await Promise.all(buys.map(executeTrade));
       }
 
       toast.success("Alle anbefalede handler er nu udført!");
