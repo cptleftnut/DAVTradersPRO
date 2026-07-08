@@ -589,18 +589,30 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
         const priceRes = await client.tickerPrice(symbol);
         const currentPrice = parseFloat(priceRes.data.price);
 
-        if (allocation < 10) {
-            const errMsg = "Minimum order size on Binance is 10 USDT/USDC. Please increase your allocation.";
-            botState.lastError = errMsg;
-            botState.lastErrorTime = Date.now();
-            throw new Error(errMsg);
-        }
+        // Fetch account balances first to make smart dynamic decisions
+        let freeQuoteBalance = 999999;
+        let freeBaseBalance = 0;
+        let balanceListStr = "";
+        const quoteAsset = symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))));
+        const baseAsset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
 
-        let formattedAllocation = allocation;
-        if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
-            formattedAllocation = Math.floor(allocation * 100) / 100; // Force 2 decimals max for stablecoins
-        } else {
-            formattedAllocation = Math.floor(allocation * 100000) / 100000;
+        try {
+            const accountRes = await client.account();
+            const balances = accountRes.data.balances || [];
+            const quoteBalanceObj = balances.find((b: any) => b.asset === quoteAsset);
+            if (quoteBalanceObj) {
+                freeQuoteBalance = parseFloat(quoteBalanceObj.free);
+            }
+            const baseBalanceObj = balances.find((b: any) => b.asset === baseAsset);
+            if (baseBalanceObj) {
+                freeBaseBalance = parseFloat(baseBalanceObj.free);
+            }
+            const nonZeroBalances = balances
+                .filter((b: any) => parseFloat(b.free) > 0)
+                .map((b: any) => `${b.asset}: ${parseFloat(b.free).toFixed(4)}`);
+            balanceListStr = nonZeroBalances.length > 0 ? nonZeroBalances.join(', ') : 'Ingen frie midler fundet i din Spot-wallet';
+        } catch (e: any) {
+            console.warn("[executeTradeInternal] Kunne ikke hente Spot-saldi på forhånd:", e.message);
         }
 
         // Fetch exchange info to respect stepSize and quoteOrderQtyMarketAllowed
@@ -631,6 +643,37 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
         let orderExecuted = false;
 
         if (side === 'BUY') {
+            // 1. Cap allocation to what is actually available in the Spot wallet (using 2% buffer for fees/slippage)
+            let adjustedAllocation = Math.min(allocation, freeQuoteBalance * 0.98);
+
+            // 2. Dynamic Minimum Order Sizing: If our allocation is under 10.20 USD, but we have enough funds
+            // (e.g., at least 10.30 USD), dynamically scale the order up to 10.20 USD to satisfy Binance's 10 USD limit!
+            if (adjustedAllocation < 10.20 && freeQuoteBalance >= 10.30) {
+                adjustedAllocation = 10.20;
+            } else if (adjustedAllocation < 10.20 && freeQuoteBalance >= 10.05) {
+                adjustedAllocation = freeQuoteBalance - 0.05;
+            }
+
+            let formattedAllocation = adjustedAllocation;
+            if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
+                formattedAllocation = Math.floor(adjustedAllocation * 100) / 100; // Force 2 decimals max for stablecoins
+            } else {
+                formattedAllocation = Math.floor(adjustedAllocation * 100000) / 100000;
+            }
+
+            // Check if the final dynamic allocation meets Binance's absolute 10 USD limit
+            if (formattedAllocation < 10.00) {
+                let errMsg = `Binance Order Error: Købsværdi ($${formattedAllocation.toFixed(2)}) er under Binance's minimumsgrænse på 10 USD. `;
+                errMsg += `Din tilgængelige Spot-saldo for ${quoteAsset} er ${freeQuoteBalance.toFixed(2)}. `;
+                if (balanceListStr) {
+                    errMsg += `Spot-beholdninger fundet: [${balanceListStr}]. `;
+                }
+                errMsg += `(Vigtigt: Hvis dine midler står i din 'Funding' (Finansiering) eller 'Futures' wallet, skal du overføre dem til 'Spot' wallet før botten kan handle)`;
+                botState.lastError = errMsg;
+                botState.lastErrorTime = Date.now();
+                throw new Error(errMsg);
+            }
+
             // Try buying with quoteOrderQty first if supported
             if (quoteOrderQtyMarketAllowed) {
                 try {
@@ -639,40 +682,37 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                     orderExecuted = true;
                 } catch (err: any) {
                     const errMsg = err.response?.data?.msg || err.message || "";
-                    // If it is a balance issue or invalid order error, try fallback to quantity buy with safety margin
                     if (err.response?.data?.code === -2010 || errMsg.toLowerCase().includes("insufficient balance") || errMsg.toLowerCase().includes("balance")) {
                         console.log("[executeTradeInternal] quoteOrderQty BUY failed with balance error. Falling back to quantity-based BUY...");
                     } else {
-                        throw err; // For other errors (e.g. keys, connection), propagate it immediately
+                        throw err;
                     }
                 }
             }
 
             // Fallback or explicit quantity-based BUY
             if (!orderExecuted) {
-                // Get available free balance of the quote asset
-                const accountRes = await client.account();
-                const balances = accountRes.data.balances || [];
-                const quoteAsset = symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))));
-                const quoteBalanceObj = balances.find((b: any) => b.asset === quoteAsset);
-                const freeQuoteBalance = quoteBalanceObj ? parseFloat(quoteBalanceObj.free) : 0;
-
-                const nonZeroBalances = balances
-                    .filter((b: any) => parseFloat(b.free) > 0)
-                    .map((b: any) => `${b.asset}: ${parseFloat(b.free).toFixed(4)}`);
-                const balanceListStr = nonZeroBalances.length > 0 ? nonZeroBalances.join(', ') : 'Ingen frie midler fundet i din Spot-wallet';
-
-                // Target allocation capped to free balance, using a 2% buffer for fees/slippage
-                const maxSpend = Math.min(formattedAllocation, freeQuoteBalance) * 0.98;
+                const maxSpend = formattedAllocation;
                 let targetQty = maxSpend / currentPrice;
                 let formattedQtyStr = roundStep(targetQty, stepSize);
                 let formattedQtyNum = parseFloat(formattedQtyStr);
 
-                if (formattedQtyNum * currentPrice < 10) {
-                    let errMsg = `Købsværdi ($${(formattedQtyNum * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD. `;
+                // If rounding made the quantity fall below the 10 USD limit, try to add one step size if we have the balance
+                if (formattedQtyNum * currentPrice < 10.00) {
+                    const stepNum = parseFloat(stepSize);
+                    if (stepNum > 0 && (formattedQtyNum + stepNum) * currentPrice <= freeQuoteBalance * 0.99) {
+                        formattedQtyNum += stepNum;
+                        formattedQtyStr = roundStep(formattedQtyNum, stepSize);
+                    }
+                }
+
+                if (formattedQtyNum * currentPrice < 10.00) {
+                    let errMsg = `Binance Order Error: Købsværdi ($${(formattedQtyNum * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD. `;
                     errMsg += `Din tilgængelige Spot-saldo for ${quoteAsset} er ${freeQuoteBalance.toFixed(2)}. `;
-                    errMsg += `Spot-beholdninger fundet: [${balanceListStr}]. `;
-                    errMsg += `(Vigtigt: Hvis dine midler står i din 'Funding' (Finansiering) eller 'Futures' wallet, skal du overføre dem til 'Spot' wallet før botten kan handle)`;
+                    if (balanceListStr) {
+                        errMsg += `Spot-beholdninger fundet: [${balanceListStr}]. `;
+                    }
+                    errMsg += `(Vigtigt: Hvis dine midler står i din 'Funding' eller 'Futures' wallet, skal du overføre dem til 'Spot' wallet før botten kan handle)`;
                     throw new Error(errMsg);
                 }
 
@@ -681,9 +721,8 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                     orderData = orderRes.data;
                     orderExecuted = true;
                 } catch (err: any) {
-                    // If still failing, try one more time scaling down further (4% buffer)
-                    console.log("[executeTradeInternal] quantity-based BUY failed. Retrying with larger safety buffer...");
-                    const maxSpendRetry = Math.min(formattedAllocation, freeQuoteBalance) * 0.96;
+                    console.log("[executeTradeInternal] quantity-based BUY failed. Retrying with slightly lower spend...");
+                    const maxSpendRetry = formattedAllocation * 0.98;
                     let targetQtyRetry = maxSpendRetry / currentPrice;
                     let formattedQtyStrRetry = roundStep(targetQtyRetry, stepSize);
                     let formattedQtyNumRetry = parseFloat(formattedQtyStrRetry);
@@ -693,10 +732,8 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                         orderData = orderRes.data;
                         orderExecuted = true;
                     } else {
-                        let errMsg = `Købsværdi ($${(formattedQtyNumRetry * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD (efter safety buffer). `;
+                        let errMsg = `Binance Order Error: Købsværdi ($${(formattedQtyNumRetry * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD efter mængdereduktion. `;
                         errMsg += `Din tilgængelige Spot-saldo for ${quoteAsset} er ${freeQuoteBalance.toFixed(2)}. `;
-                        errMsg += `Spot-beholdninger fundet: [${balanceListStr}]. `;
-                        errMsg += `(Vigtigt: Hvis dine midler står i din 'Funding' eller 'Futures' wallet, skal du overføre dem til 'Spot' wallet før botten kan handle)`;
                         throw new Error(errMsg);
                     }
                 }
@@ -704,11 +741,12 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
         } else {
             // side === 'SELL'
             // For selling, we always use quantity to be safe and avoid quoteOrderQty issues.
-            const accountRes = await client.account();
-            const balances = accountRes.data.balances || [];
-            const baseAsset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
-            const baseBalanceObj = balances.find((b: any) => b.asset === baseAsset);
-            const freeBaseBalance = baseBalanceObj ? parseFloat(baseBalanceObj.free) : 0;
+            let formattedAllocation = allocation;
+            if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
+                formattedAllocation = Math.floor(allocation * 100) / 100;
+            } else {
+                formattedAllocation = Math.floor(allocation * 100000) / 100000;
+            }
 
             let targetQty = formattedAllocation / currentPrice;
             let finalQty = Math.min(targetQty, freeBaseBalance);

@@ -2007,9 +2007,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         return;
     }
 
-    if (newState && allocation < 10) {
-        addLog("Minimum order size is 10 USDT.", "error");
-        toast.error("Minimum order size is 10 USDT.");
+    if (newState && allocation < 1) {
+        addLog("Minimum order size is 1 USDT.", "error");
+        toast.error("Minimum order size is 1 USDT.");
         return;
     }
 
@@ -2262,9 +2262,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   };
 
   const handleDeploy = async () => {
-    if (allocation < 10) {
-        addLog("Minimum order size is 10 USDT.", "error");
-        toast.error("Minimum order size is 10 USDT.");
+    if (allocation < 1) {
+        addLog("Minimum order size is 1 USDT.", "error");
+        toast.error("Minimum order size is 1 USDT.");
         return;
     }
     addLog(`AI Execution parameters updated for ${symbol}. Strategy: ${strategy}`, 'info');
