@@ -4320,6 +4320,37 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                 >
                                   Nulstil
                                 </button>
+                                <button 
+                                  type="button"
+                                  onClick={async () => {
+                                     try {
+                                        const userApiKey = localStorage.getItem('user_binance_api_key');
+                                        const userApiSecret = localStorage.getItem('user_binance_api_secret');
+                                        const headers: any = { 'Content-Type': 'application/json' };
+                                        if (userApiKey) headers['x-binance-api-key'] = userApiKey;
+                                        if (userApiSecret) headers['x-binance-api-secret'] = userApiSecret;
+                                        if (googleUser?.uid) headers['x-user-uid'] = googleUser.uid;
+
+                                        const res = await fetch('/api/wallet/reset-to-live', {
+                                           method: 'POST',
+                                           headers
+                                        });
+                                        const data = await res.json();
+                                        if (res.ok && data.success) {
+                                           fetchWalletRef.current?.();
+                                           toast.success('Demowallet blev nulstillet og synkroniseret med din ægte wallet!');
+                                           addLog('Nulstillede og spejlede demowallet til ægte wallet indhold', 'info');
+                                        } else {
+                                           toast.error(data.error || 'Kunne ikke spejle ægte wallet');
+                                        }
+                                     } catch (err: any) {
+                                        toast.error(err.message || 'Der opstod en fejl under spejling');
+                                     }
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 text-[10px] hover:bg-emerald-900/40 hover:text-white transition-all uppercase font-mono font-bold cursor-pointer inline-flex items-center"
+                                >
+                                  Spejl Ægte Wallet
+                                </button>
                               </div>
                               <form onSubmit={handleUpdateWallet} className="flex flex-col gap-2 p-3 bg-gray-900/50 rounded-xl border border-gray-800/80 mt-2">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-500 mb-1">Administrer Beholdning</p>
