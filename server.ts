@@ -18,6 +18,9 @@ import {
 } from "firebase/firestore";
 import * as tf from "@tensorflow/tfjs";
 import firebaseConfig from "./firebase-applet-config.json" with { type: "json" };
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 setLogLevel("silent");
 
@@ -99,6 +102,25 @@ async function getBinanceCredentials(
 
 const app = express();
 const PORT = 3000;
+
+app.use(helmet({
+  contentSecurityPolicy: false, // Since this serves the frontend, we disable default CSP here or configure it carefully if it was failing build
+}));
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:5173", "https://localhost:3000"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-binance-api-key", "x-binance-api-secret"]
+}));
+
+// Configure standard rate limiting for all API routes to prevent DoS/brute force
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
+  standardHeaders: 'draft-7', // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+  message: { error: "Too many requests, please try again later." }
+});
+app.use("/api/", apiLimiter);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
