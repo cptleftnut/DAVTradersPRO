@@ -63,33 +63,95 @@ export const RebalanceSuggestion: React.FC = () => {
         
         const activeTargets = targets[userProfile as keyof typeof targets] || targets["Balanceret"];
         
-        for (const s of relevantAssets) {
-          const qty = parseFloat(s.free) + parseFloat(s.locked);
-          let price = 1;
-          
+        // Prepare promises for all missing prices
+        const pricePromises: Promise<{asset: string, price: number}>[] = relevantAssets.map(async (s: any) => {
           if (s.asset !== "USDT" && s.asset !== "USDC") {
             try {
               const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${s.asset}USDT`);
               if (pRes.ok) {
                 const json = await pRes.json();
-                price = parseFloat(json.price);
+                return { asset: s.asset, price: parseFloat(json.price) };
+              }
+            } catch (e) {}
+          }
+          return { asset: s.asset, price: 1 };
+        });
+
+        // Add promises for missing targets that need fetching
+        const missingTargets = activeTargets.filter((t: any) => !relevantAssets.find((s: any) => s.asset === t.asset));
+        const missingTargetPromises = missingTargets.map(async (t: any) => {
+          if (t.asset !== "USDT" && t.asset !== "USDC") {
+            try {
+              const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${t.asset}USDT`);
+              if (pRes.ok) {
+                const json = await pRes.json();
+                return { asset: t.asset, price: parseFloat(json.price) };
               }
             } catch (e) {} 
           }
+          return { asset: t.asset, price: 1 };
+        });
+
+        // Resolve all promises concurrently
+        const [assetPrices, missingTargetPrices] = await Promise.all([
+          Promise.all(pricePromises),
+          Promise.all(missingTargetPromises)
+        ]);
+
+        const priceMap = new Map<string, number>();
+        for (const {asset, price} of [...assetPrices, ...missingTargetPrices]) {
+          priceMap.set(asset, price);
+        }
+
+        for (const s of relevantAssets) {
+          const qty = parseFloat(s.free) + parseFloat(s.locked);
+          const price = priceMap.get(s.asset) ?? 1;
           
+        const fetchAssetPrice = async (asset: string) => {
+          if (asset === "USDT" || asset === "USDC") return 1;
+          try {
+            const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${asset}USDT`);
+            if (pRes.ok) {
+              const json = await pRes.json();
+              return parseFloat(json.price);
+            }
+          } catch (e) {}
+          return 1;
+        };
+
+        const assetsWithPrices = await Promise.all(
+          relevantAssets.map(async (s: any) => {
+            const qty = parseFloat(s.free) + parseFloat(s.locked);
+            const price = await fetchAssetPrice(s.asset);
+            return { s, qty, price };
+          })
+        );
+
+        for (const item of assetsWithPrices) {
+          const { s, qty, price } = item;
           const val = qty * price;
           totalUsdtValue += val;
           newHoldings.push({
             asset: s.asset,
             weight: 0,
-            targetWeight: activeTargets.find(t => t.asset === s.asset)?.targetWeight || 0,
+            targetWeight: activeTargets.find((t: any) => t.asset === s.asset)?.targetWeight || 0,
             value: val,
             currentQty: qty,
             price: price
           });
         }
-        
+
         // Add zero balance targets that should be bought
+        for (const t of missingTargets) {
+           newHoldings.push({
+               asset: t.asset,
+               weight: 0,
+               targetWeight: t.targetWeight as number,
+               value: 0,
+               currentQty: 0,
+               price: priceMap.get(t.asset) ?? 1
+           });
+        }
         for (const t of activeTargets) {
            if (!newHoldings.find(h => h.asset === t.asset)) {
                newHoldings.push({
@@ -103,19 +165,12 @@ export const RebalanceSuggestion: React.FC = () => {
            }
         }
         
-        // Fetch prices for zero balance targets
-        for (let i=0; i<newHoldings.length; i++) {
-           const h = newHoldings[i];
+        // Fetch prices for zero balance targets concurrently
+        await Promise.all(newHoldings.map(async (h) => {
            if (h.value === 0 && h.asset !== "USDT" && h.asset !== "USDC") {
-               try {
-                  const pRes = await fetch(`/api/binance-proxy/ticker/price?symbol=${h.asset}USDT`);
-                  if (pRes.ok) {
-                    const json = await pRes.json();
-                    h.price = parseFloat(json.price);
-                  }
-                } catch (e) {} 
+               h.price = await fetchAssetPrice(h.asset);
            }
-        }
+        }));
         
         if (totalUsdtValue > 0) {
           newHoldings = newHoldings

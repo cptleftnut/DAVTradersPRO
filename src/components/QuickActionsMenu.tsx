@@ -1,14 +1,39 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Wallet, HelpCircle, X, Zap } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const QuickActionsMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const actions = [
-    { label: 'Place Order', icon: Zap, action: () => console.log('Place Order') },
-    { label: 'Check Balance', icon: Wallet, action: () => console.log('Check Balance') },
-    { label: 'Open Help', icon: HelpCircle, action: () => console.log('Open Help') },
+    {
+      label: 'Place Order',
+      icon: Zap,
+      action: () => {
+        // TODO: Implement Place Order logic
+        toast.info('Place Order action triggered');
+        setIsOpen(false);
+      }
+    },
+    {
+      label: 'Check Balance',
+      icon: Wallet,
+      action: () => {
+        // TODO: Implement Check Balance logic
+        toast.info('Check Balance action triggered');
+        setIsOpen(false);
+      }
+    },
+    {
+      label: 'Open Help',
+      icon: HelpCircle,
+      action: () => {
+        // TODO: Implement Open Help logic
+        toast.info('Open Help action triggered');
+        setIsOpen(false);
+      }
+    },
   ];
 
   return (

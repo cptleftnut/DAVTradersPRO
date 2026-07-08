@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { AuthScreen } from "./components/AuthScreen";
 import { SalesPage } from "./components/SalesPage";
 import { BinanceTradingPanel } from "./components/BinanceTradingPanel";
@@ -269,7 +269,10 @@ export default function App() {
     return <SalesPage onGoToPlatform={() => setShowAuth(true)} />;
   }
 
-  const componentsMap: Record<string, React.ReactNode> = {
+  // ⚡ Bolt: Memoize componentsMap to prevent unnecessary re-renders of all dashboard widgets
+  // 🎯 Why: When App state changes (e.g., drag and drop ordering, sidebar toggling), all widgets would re-render.
+  // 📊 Impact: Prevents re-rendering 15+ complex widget components on App state changes, reducing CPU usage during drag/drop operations.
+  const componentsMap: Record<string, React.ReactNode> = useMemo(() => ({
     DailyPerformanceMetric: <DailyPerformanceMetric />,
     SystemHealthMonitor: <SystemHealthMonitor />,
     AuditTrail: <AuditTrail />,
@@ -288,7 +291,7 @@ export default function App() {
     TradeDiagnostics: <TradeDiagnostics logs={[]} />,
     BacktestWidget: <BacktestWidget />,
     SessionSummaryWidget: <SessionSummaryWidget />
-  };
+  }), [addLog]);
 
   return (
     <div className="min-h-screen bg-gray-950 font-sans text-gray-100">

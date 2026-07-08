@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
-export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
-  const [bids, setBids] = useState<[string, string][]>([]);
-  const [asks, setAsks] = useState<[string, string][]>([]);
+interface OrderBookEntry {
+  price: number;
+  amt: number;
+  total: number;
+}
+
+// ⚡ Bolt: Wrapped in React.memo to prevent unnecessary re-renders when parent components update
+export const OrderBook = React.memo(function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
+  const [bids, setBids] = useState<OrderBookEntry[]>([]);
+  const [asks, setAsks] = useState<OrderBookEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Move function outside of onmessage handler
+  const processEntry = (entry: [string, string]) => {
+    const price = parseFloat(entry[0]);
+    const amt = parseFloat(entry[1]);
+    return { price, amt, total: price * amt };
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -20,9 +34,11 @@ export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
           if (!isActive) return;
           const data = JSON.parse(event.data);
           if (data.bids && data.asks) {
-            setBids(data.bids.slice(0, 15));
+            // ⚡ Bolt: Pre-parse string arrays into objects containing numbers here to save CPU cycles
+            // during the render loop. This avoids running parseFloat inside the JSX map.
+            setBids(data.bids.slice(0, 15).map(processEntry));
             // Reverse asks to show lowest price at the bottom (closest to spread)
-            setAsks(data.asks.slice(0, 15).reverse());
+            setAsks(data.asks.slice(0, 15).map(processEntry).reverse());
             setLoading(false);
           }
         };
@@ -40,8 +56,8 @@ export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
   }, [symbol]);
 
   const maxTotal = Math.max(
-    ...bids.map(b => parseFloat(b[0]) * parseFloat(b[1])),
-    ...asks.map(a => parseFloat(a[0]) * parseFloat(a[1])),
+    ...bids.map(b => b.total),
+    ...asks.map(a => a.total),
     1 // fallback
   );
 
@@ -71,9 +87,7 @@ export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
             {/* Asks */}
             <div className="flex flex-col gap-[1px]">
               {asks.map((ask, i) => {
-                const price = parseFloat(ask[0]);
-                const amt = parseFloat(ask[1]);
-                const total = price * amt;
+                const { price, amt, total } = ask;
                 const width = (total / maxTotal) * 100;
                 return (
                   <div key={`ask-${i}`} className="relative grid grid-cols-3 px-2 py-0.5 group hover:bg-gray-800/50">
@@ -91,7 +105,7 @@ export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
                <span className="text-[10px] uppercase font-bold tracking-widest text-gray-500">Spread</span>
                {asks.length > 0 && bids.length > 0 && (
                  <span className="text-amber-400/80 font-bold">
-                   {(parseFloat(asks[asks.length-1][0]) - parseFloat(bids[0][0])).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                   {(asks[asks.length-1].price - bids[0].price).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                  </span>
                )}
             </div>
@@ -99,9 +113,7 @@ export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
             {/* Bids */}
             <div className="flex flex-col gap-[1px]">
               {bids.map((bid, i) => {
-                const price = parseFloat(bid[0]);
-                const amt = parseFloat(bid[1]);
-                const total = price * amt;
+                const { price, amt, total } = bid;
                 const width = (total / maxTotal) * 100;
                 return (
                   <div key={`bid-${i}`} className="relative grid grid-cols-3 px-2 py-0.5 group hover:bg-gray-800/50">
@@ -118,4 +130,4 @@ export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
       </div>
     </div>
   );
-}
+});
