@@ -92,7 +92,9 @@ export function PortfolioRebalancer({
               const json = await res.json();
               price = parseFloat(json.price);
             }
-          } catch (e) {} // Fallback to 1 if not paired with USDT
+          } catch (e) {
+            console.warn(`Failed to fetch price for ${s.asset}USDT, falling back to 1`, e);
+          }
         }
 
         const val = qty * price;
