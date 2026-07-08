@@ -561,14 +561,17 @@ async function getSymbolExchangeInfo(client: Spot, symbol: string) {
     return null;
 }
 
-function roundStep(qty: number, stepSize: string) {
-    const step = parseFloat(stepSize);
-    if (isNaN(step) || step <= 0) return qty;
-    const stepStr = stepSize.replace(/\.?0+$/, ""); // remove trailing zeros
-    const parts = stepStr.split(".");
-    const decimals = parts.length > 1 ? parts[1].length : 0;
+function roundStep(qty: number, stepSize: string): string {
+    // stepSize is typically like '0.01000000', '0.00010000' or '1.00000000'
+    let decimals = 0;
+    if (stepSize && parseFloat(stepSize) > 0 && stepSize.includes('.')) {
+        const parts = stepSize.split('.');
+        const decimalPart = parts[1].replace(/0+$/, ''); // remove trailing zeros
+        decimals = decimalPart.length;
+    }
     const factor = Math.pow(10, decimals);
-    return Math.floor(qty * factor) / factor;
+    const rounded = Math.floor(qty * factor) / factor;
+    return rounded.toFixed(decimals);
 }
 
 async function executeTradeInternal(symbol: string, side: string, allocation: number, customApiKey?: string, customApiSecret?: string) {
@@ -612,8 +615,15 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
             }
             const lotSizeFilter = symbolInfo.filters?.find((f: any) => f.filterType === 'LOT_SIZE');
             const marketLotSizeFilter = symbolInfo.filters?.find((f: any) => f.filterType === 'MARKET_LOT_SIZE') || lotSizeFilter;
+            
+            if (lotSizeFilter && lotSizeFilter.stepSize) {
+                stepSize = lotSizeFilter.stepSize;
+            }
             if (marketLotSizeFilter && marketLotSizeFilter.stepSize) {
-                stepSize = marketLotSizeFilter.stepSize;
+                const parsedMarketStep = parseFloat(marketLotSizeFilter.stepSize);
+                if (!isNaN(parsedMarketStep) && parsedMarketStep > 0) {
+                    stepSize = marketLotSizeFilter.stepSize;
+                }
             }
         }
 
@@ -647,17 +657,27 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                 const quoteBalanceObj = balances.find((b: any) => b.asset === quoteAsset);
                 const freeQuoteBalance = quoteBalanceObj ? parseFloat(quoteBalanceObj.free) : 0;
 
+                const nonZeroBalances = balances
+                    .filter((b: any) => parseFloat(b.free) > 0)
+                    .map((b: any) => `${b.asset}: ${parseFloat(b.free).toFixed(4)}`);
+                const balanceListStr = nonZeroBalances.length > 0 ? nonZeroBalances.join(', ') : 'Ingen frie midler fundet i din Spot-wallet';
+
                 // Target allocation capped to free balance, using a 2% buffer for fees/slippage
                 const maxSpend = Math.min(formattedAllocation, freeQuoteBalance) * 0.98;
                 let targetQty = maxSpend / currentPrice;
-                let formattedQty = roundStep(targetQty, stepSize);
+                let formattedQtyStr = roundStep(targetQty, stepSize);
+                let formattedQtyNum = parseFloat(formattedQtyStr);
 
-                if (formattedQty * currentPrice < 10) {
-                    throw new Error(`Købsværdi ($${(formattedQty * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD. Forøg din saldo eller din allokering.`);
+                if (formattedQtyNum * currentPrice < 10) {
+                    let errMsg = `Købsværdi ($${(formattedQtyNum * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD. `;
+                    errMsg += `Din tilgængelige Spot-saldo for ${quoteAsset} er ${freeQuoteBalance.toFixed(2)}. `;
+                    errMsg += `Spot-beholdninger fundet: [${balanceListStr}]. `;
+                    errMsg += `(Vigtigt: Hvis dine midler står i din 'Funding' (Finansiering) eller 'Futures' wallet, skal du overføre dem til 'Spot' wallet før botten kan handle)`;
+                    throw new Error(errMsg);
                 }
 
                 try {
-                    const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQty.toString(), recvWindow: 60000 });
+                    const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQtyStr, recvWindow: 60000 });
                     orderData = orderRes.data;
                     orderExecuted = true;
                 } catch (err: any) {
@@ -665,14 +685,19 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                     console.log("[executeTradeInternal] quantity-based BUY failed. Retrying with larger safety buffer...");
                     const maxSpendRetry = Math.min(formattedAllocation, freeQuoteBalance) * 0.96;
                     let targetQtyRetry = maxSpendRetry / currentPrice;
-                    let formattedQtyRetry = roundStep(targetQtyRetry, stepSize);
+                    let formattedQtyStrRetry = roundStep(targetQtyRetry, stepSize);
+                    let formattedQtyNumRetry = parseFloat(formattedQtyStrRetry);
                     
-                    if (formattedQtyRetry * currentPrice >= 10) {
-                        const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQtyRetry.toString(), recvWindow: 60000 });
+                    if (formattedQtyNumRetry * currentPrice >= 10) {
+                        const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQtyStrRetry, recvWindow: 60000 });
                         orderData = orderRes.data;
                         orderExecuted = true;
                     } else {
-                        throw err;
+                        let errMsg = `Købsværdi ($${(formattedQtyNumRetry * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD (efter safety buffer). `;
+                        errMsg += `Din tilgængelige Spot-saldo for ${quoteAsset} er ${freeQuoteBalance.toFixed(2)}. `;
+                        errMsg += `Spot-beholdninger fundet: [${balanceListStr}]. `;
+                        errMsg += `(Vigtigt: Hvis dine midler står i din 'Funding' eller 'Futures' wallet, skal du overføre dem til 'Spot' wallet før botten kan handle)`;
+                        throw new Error(errMsg);
                     }
                 }
             }
@@ -693,15 +718,16 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
                 finalQty = freeBaseBalance;
             }
 
-            let formattedQty = roundStep(finalQty, stepSize);
+            let formattedQtyStr = roundStep(finalQty, stepSize);
+            let formattedQtyNum = parseFloat(formattedQtyStr);
 
-            if (formattedQty * currentPrice < 10) {
+            if (formattedQtyNum * currentPrice < 10) {
                 // Try to force selling the entire base balance if we are cleaning up, otherwise we let Binance report the LOT_SIZE/MIN_NOTIONAL error
-                formattedQty = roundStep(freeBaseBalance, stepSize);
+                formattedQtyStr = roundStep(freeBaseBalance, stepSize);
             }
 
             try {
-                const orderRes = await client.newOrder(symbol, 'SELL', 'MARKET', { quantity: formattedQty.toString(), recvWindow: 60000 });
+                const orderRes = await client.newOrder(symbol, 'SELL', 'MARKET', { quantity: formattedQtyStr, recvWindow: 60000 });
                 orderData = orderRes.data;
             } catch (err: any) {
                 console.error("DEBUG: Binance raw SELL error:", err);
