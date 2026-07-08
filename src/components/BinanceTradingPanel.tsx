@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useRef, FormEvent, DragEvent, useMemo } from 'react';
 
+const formatSymbol = (sym: string) => {
+  if (!sym) return "";
+  if (sym.includes("/")) return sym; // already has slash
+  const quotes = ["USDC", "USDT", "BTC", "ETH", "BNB", "EUR"];
+  for (const quote of quotes) {
+    if (sym.endsWith(quote)) {
+      const base = sym.slice(0, sym.length - quote.length);
+      return `${base}/${quote}`;
+    }
+  }
+  return sym;
+};
+
 const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTakeProfit, globalStopLoss, onUpdate }: any) => {
     const asset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
     const quote = symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))));
@@ -194,8 +207,8 @@ export function MarketStatusHeader({ serverSymbol, localSymbol }: { serverSymbol
         {serverSymbol ? (
           <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-lg border border-amber-500/30 font-mono text-sm font-bold">
             <span>{serverSymbol}</span>
-            {serverSymbol === 'SOLUSDC' && localSymbol !== 'SOLUSDC' && (
-               <span className="bg-amber-500 text-black text-[10px] px-1.5 py-0.5 rounded ml-2">Forced</span>
+            {serverSymbol !== localSymbol && (
+               <span className="bg-amber-500/20 text-amber-300 text-[10px] px-1.5 py-0.5 rounded ml-2 border border-amber-500/20" title="Det aktive par på serveren afviger fra din lokale UI-visning">Aktiv på Server</span>
             )}
           </div>
         ) : (
@@ -1417,9 +1430,9 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
           const state = await res.json();
           if (state.symbol) {
             setServerSymbol(state.symbol);
-            if (state.symbol === 'SOLUSDC' && symbol !== 'SOLUSDC') {
-              setSymbol('SOLUSDC');
-              toast.info("Handelspar synkroniseret til serverens krav (SOLUSDC)");
+            if (state.isActive && state.symbol !== symbol) {
+              setSymbol(state.symbol);
+              toast.info(`Handelspar synkroniseret til aktiv bot (${formatSymbol(state.symbol)})`);
             }
           }
         }
@@ -1434,13 +1447,6 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
     // Auto-switch disabled manually based on user request. 
     // It was causing the symbol to revert to USDT when USDC balance was low.
   }, [walletData, symbol, isBotActive, addLog, allocation]);
-
-  useEffect(() => {
-    if (symbol === 'SOLUSDT') {
-      setSymbol('SOLUSDC');
-      toast.info("Handelspar SOL/USDT konverteres automatisk til SOL/USDC");
-    }
-  }, [symbol]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -2576,18 +2582,6 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
 
       <MarketStatusHeader serverSymbol={serverSymbol} localSymbol={symbol} />
       
-      {symbol !== 'SOLUSDC' && (
-        <div className="bg-rose-500/10 border border-rose-500/50 rounded-2xl p-4 mb-6 flex items-start gap-4 animate-in fade-in duration-300">
-           <AlertTriangle className="size-5 text-rose-500 shrink-0 mt-0.5" />
-           <div>
-              <h3 className="text-rose-500 font-bold text-sm mb-1">Advarsel: Ikke-understøttet Handelspar</h3>
-              <p className="text-rose-500/80 text-xs">
-                 Du har valgt <strong>{symbol}</strong> lokalt, men af hensyn til live trading stabilitet er <strong>SOL/USDC</strong> i øjeblikket det eneste understøttede par. Serveren tvinger automatisk din handel over på SOL/USDC. Vælg SOL/USDC for at synkronisere dit UI.
-              </p>
-           </div>
-        </div>
-      )}
-
       {unpaidFee > 0 && (
         <div className="bg-rose-500/10 border border-rose-500/50 rounded-2xl p-6 mb-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top fade-in duration-500">
            <div className="flex items-start gap-4 flex-1">
@@ -2743,7 +2737,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
              <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2">
                    <LineChart className="size-4 text-emerald-500" />
-                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{symbol} Market Trend (24h)</span>
+                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{formatSymbol(symbol)} Market Trend (24h)</span>
                 </div>
                 {historicalPricesLoading && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>}
              </div>
@@ -2776,7 +2770,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-gray-950/40 border border-gray-800/80 p-4 rounded-2xl mb-8 relative z-10">
              <div className="flex items-center gap-4">
                 <div>
-                   <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">{symbol}</p>
+                   <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">{formatSymbol(symbol)}</p>
                    <p className="font-mono text-xl font-bold text-white">${currentPrice}</p>
                 </div>
                 <div className="h-8 w-px bg-gray-800"></div>
@@ -3054,11 +3048,6 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                <div className="relative" ref={tickerDropdownRef}>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Handelspar</label>
-                    {symbol === 'SOLUSDC' && (
-                      <span className="text-[10px] bg-cyan-950/60 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-900/50" title="Systemet tvinger automatisk SOLUSDT til SOL/USDC">
-                        Auto-Mapped (USDC)
-                      </span>
-                    )}
                   </div>
                   <div 
                     className="w-full bg-gray-950 border border-gray-800 text-white rounded-xl p-3 focus-within:ring-2 focus-within:ring-amber-500 font-mono text-xs sm:text-sm flex items-center justify-between cursor-pointer transition-colors hover:border-gray-700"
@@ -3709,11 +3698,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                             <Zap className="size-5" />
                           </div>
                           <span className="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-full font-mono">
-                            {symbol}
+                            {formatSymbol(symbol)}
                           </span>
                         </div>
                         <h5 className="text-sm font-bold text-gray-200 group-hover:text-cyan-400 transition-colors">Live Data & Kurs</h5>
-                        <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">Overvåg realtids markedsordrer, charts og prisændringer for {symbol}.</p>
+                        <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">Overvåg realtids markedsordrer, charts og prisændringer for {formatSymbol(symbol)}.</p>
                       </div>
                       <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/5">
                         <span className={`text-xs font-mono font-bold ${priceChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -5650,7 +5639,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         const handleCopySummary = () => {
           const textToCopy = `=== HANDELSSTATUS & AI RAPPORT ===
 Dato: ${activeDateText}
-Aktiv: ${symbol}
+Aktiv: ${formatSymbol(symbol)}
 Total PnL: ${activePnl >= 0 ? '+' : ''}$${activePnl.toFixed(2)}
 Antal Handler: ${activeTradesCount}
 Win Rate: ${activeWinRate.toFixed(1)}%
@@ -5666,7 +5655,7 @@ ${activeSummaryText}
         const handleExportSummary = () => {
           const textToExport = `=== HANDELSSTATUS & AI RAPPORT ===
 Dato: ${activeDateText}
-Aktiv: ${symbol}
+Aktiv: ${formatSymbol(symbol)}
 Total PnL: ${activePnl >= 0 ? '+' : ''}$${activePnl.toFixed(2)}
 Antal Handler: ${activeTradesCount}
 Win Rate: ${activeWinRate.toFixed(1)}%
@@ -5743,7 +5732,7 @@ ${activeSummaryText}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 font-mono mt-0.5">
                       <span>Dato: <strong className="text-gray-300">{activeDateText}</strong></span>
                       <span className="text-gray-700">•</span>
-                      <span>Aktiv: <strong className="text-indigo-400">{symbol}</strong></span>
+                      <span>Aktiv: <strong className="text-indigo-400">{formatSymbol(symbol)}</strong></span>
                       <span className="text-gray-700">•</span>
                       <span>Strategi: <strong className="text-indigo-400">{strategy}</strong></span>
                     </div>

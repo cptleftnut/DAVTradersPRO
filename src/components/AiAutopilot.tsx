@@ -1,4 +1,17 @@
 import React from 'react';
+
+const formatSymbol = (sym: string) => {
+  if (!sym) return "";
+  if (sym.includes("/")) return sym; // already has slash
+  const quotes = ["USDC", "USDT", "BTC", "ETH", "BNB", "EUR"];
+  for (const quote of quotes) {
+    if (sym.endsWith(quote)) {
+      const base = sym.slice(0, sym.length - quote.length);
+      return `${base}/${quote}`;
+    }
+  }
+  return sym;
+};
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bot, Zap, Shield, Rocket, Activity, Settings, BarChart, ChevronRight, CheckCircle2, XCircle, BrainCircuit, RefreshCw } from 'lucide-react';
@@ -76,8 +89,8 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
       type: 'config',
       action: nextActive ? 'AUTOPILOT_BOT_START' : 'AUTOPILOT_BOT_STOP',
       details: nextActive 
-        ? `AI Autopilot blev startet for ${symbol}. Risiko: ${riskLevel.toUpperCase()}, Strategi: ${strategy.toUpperCase()}.`
-        : `AI Autopilot blev deaktiveret for ${symbol}. Systemet overgik til manuel tilstand.`,
+        ? `AI Autopilot blev startet for ${formatSymbol(symbol)}. Risiko: ${riskLevel.toUpperCase()}, Strategi: ${strategy.toUpperCase()}.`
+        : `AI Autopilot blev deaktiveret for ${formatSymbol(symbol)}. Systemet overgik til manuel tilstand.`,
       status: nextActive ? 'success' : 'warning',
       user: 'Bruger'
     });
@@ -360,7 +373,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                  </div>
              ) : (
                  <div className="text-center py-4 border border-dashed border-gray-800 rounded-lg">
-                    <p className="text-[10px] text-gray-500 uppercase">Ingen data for {symbol}</p>
+                    <p className="text-[10px] text-gray-500 uppercase">Ingen data for {formatSymbol(symbol)}</p>
                     <button onClick={runForecast} className="mt-2 text-xs text-purple-400 hover:text-purple-300">Kør analyse nu</button>
                  </div>
              )}
@@ -398,7 +411,7 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                                {signal.type}
                              </div>
                              <div>
-                                <div className="text-gray-200 font-bold">{signal.symbol}</div>
+                                <div className="text-gray-200 font-bold">{formatSymbol(signal.symbol)}</div>
                                 <div className="text-[10px] text-gray-500">Pris: ${signal.price} &bull; Conf: {signal.confidence}%</div>
                              </div>
                            </div>

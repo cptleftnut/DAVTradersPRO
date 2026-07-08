@@ -606,7 +606,6 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
 
 async function startBot(symbol: string, allocation: number, isLiveTrading: boolean, takeProfit: number, stopLoss: number, strategy: string, useTrailingStop?: boolean, dynamicSizing?: boolean, maxRiskPerTrade?: number, diversifySectors?: boolean, stopLossType?: 'percentage' | 'fixed', autoAdjustVolatility?: boolean, useNewsSentiment?: boolean, circuitBreakerLimit?: number, enableDCA?: boolean, dcaIntervalHours?: number, dcaAllocation?: number, enableAutoStopLoss?: boolean) {
   await stopBot();
-  symbol = symbol === 'SOLUSDT' ? 'SOLUSDC' : symbol;
   botState.symbol = symbol;
   botState.allocation = allocation;
   botState.isLiveTrading = isLiveTrading;
@@ -1281,7 +1280,7 @@ app.post('/api/bot/update', async (req, res) => {
    try {
    const { symbol, allocation, isLiveTrading, takeProfit, stopLoss, stopLossType, strategy, useTrailingStop, dynamicSizing, maxRiskPerTrade, diversifySectors, autoAdjustVolatility, useNewsSentiment, circuitBreakerLimit, enableDCA, dcaIntervalHours, dcaAllocation } = req.body;
    
-   if (symbol !== undefined) botState.symbol = symbol === 'SOLUSDT' ? 'SOLUSDC' : symbol;
+   if (symbol !== undefined) botState.symbol = symbol;
    if (allocation !== undefined && typeof allocation === 'number') botState.allocation = allocation;
    if (isLiveTrading !== undefined) botState.isLiveTrading = isLiveTrading;
    if (takeProfit !== undefined && typeof takeProfit === 'number') botState.takeProfit = takeProfit;
