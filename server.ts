@@ -21,39 +21,14 @@ import firebaseConfig from "./firebase-applet-config.json" with { type: "json" }
 
 setLogLevel("silent");
 
-const originalConsoleError = console.error;
-console.error = (...args) => {
-  try {
-    const errorString = args
-      .map((a) => {
-        if (typeof a === "string") return a;
-        if (a instanceof Error) return a.message + " " + (a.stack || "");
-        try {
-          return JSON.stringify(a);
-        } catch (e) {
-          return String(a);
-        }
-      })
-      .join(" ");
+export function isQuotaError(error: any): boolean {
+  if (!error) return false;
+  if (error.status === 429) return true;
 
-    if (
-      errorString.includes("RESOURCE_EXHAUSTED") ||
-      errorString.includes("resource-exhausted") ||
-      errorString.includes("429") ||
-      errorString.includes("too_many_requests") ||
-      errorString.includes("depleted") ||
-      errorString.includes("Function.generate") ||
-      errorString.includes("makeStatusError")
-    ) {
-      return; // Suppress quota errors
-    }
-  } catch (e) {}
-  originalConsoleError(...args);
-};
+  const msg =
+    typeof error === "string" ? error : error.message || String(error);
 
-process.on("unhandledRejection", (reason, promise) => {
-  const msg = String(reason);
-  if (
+  return (
     msg.includes("RESOURCE_EXHAUSTED") ||
     msg.includes("resource-exhausted") ||
     msg.includes("429") ||
@@ -61,11 +36,8 @@ process.on("unhandledRejection", (reason, promise) => {
     msg.includes("depleted") ||
     msg.includes("Function.generate") ||
     msg.includes("makeStatusError")
-  ) {
-    return; // Ignore
-  }
-  originalConsoleError("Unhandled Rejection at:", promise, "reason:", reason);
-});
+  );
+}
 
 let firebaseApp;
 if (!getApps().length) {
@@ -295,10 +267,11 @@ async function loadBotState() {
       try {
         await setDoc(doc(db, "systemState", "botConfig"), botState);
       } catch (initErr) {
-        console.error(
-          "[Firebase] Fatal error initializing bot state:",
-          initErr,
-        );
+        if (!isQuotaError(initErr))
+          console.error(
+            "[Firebase] Fatal error initializing bot state:",
+            initErr,
+          );
       }
     } else {
       console.error("[Firebase] Error loading bot state:", err);
@@ -316,7 +289,8 @@ async function saveBotState() {
         console.error("[Firebase] Error saving bot state async:", err);
       });
     } catch (err) {
-      console.error("[Firebase] Error saving bot state:", err);
+      if (!isQuotaError(err))
+        console.error("[Firebase] Error saving bot state:", err);
     }
   }, 30000); // 30 second debounce
 }
@@ -346,10 +320,11 @@ async function loadWallet() {
       try {
         await setDoc(doc(db, "wallet", "simulated"), simulatedWallet);
       } catch (initErr) {
-        console.error(
-          "[Firebase] Fatal error initializing wallet state:",
-          initErr,
-        );
+        if (!isQuotaError(initErr))
+          console.error(
+            "[Firebase] Fatal error initializing wallet state:",
+            initErr,
+          );
       }
     } else {
       console.error("[Firebase] Error loading wallet state:", err);
@@ -367,7 +342,8 @@ async function saveWallet() {
         console.error("[Firebase] Error saving wallet state async:", err);
       });
     } catch (err) {
-      console.error("[Firebase] Error saving wallet state:", err);
+      if (!isQuotaError(err))
+        console.error("[Firebase] Error saving wallet state:", err);
     }
   }, 30000); // 30 second debounce
 }
@@ -679,11 +655,9 @@ app.post("/api/bot/maintenance", async (req, res) => {
       res.json({ success: true, maintenanceMode: false, botState });
     }
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        error: error.message || "Kunne ikke ændre vedligeholdelsestilstand",
-      });
+    res.status(500).json({
+      error: error.message || "Kunne ikke ændre vedligeholdelsestilstand",
+    });
   }
 });
 
@@ -1026,12 +1000,14 @@ async function executeTradeInternal(
         });
         orderData = orderRes.data;
       } catch (err: any) {
-        console.error("DEBUG: Binance raw SELL error:", err);
+        if (!isQuotaError(err))
+          console.error("DEBUG: Binance raw SELL error:", err);
         if (err.response) {
-          console.error(
-            "DEBUG: Binance response data on SELL:",
-            err.response.data,
-          );
+          if (!isQuotaError(err))
+            console.error(
+              "DEBUG: Binance response data on SELL:",
+              err.response.data,
+            );
         }
         throw err;
       }
@@ -1057,12 +1033,14 @@ async function executeTradeInternal(
       txHash: orderData.orderId ? String(orderData.orderId) : undefined, // Binance spot has no on-chain tx hash; orderId is the canonical reference
     };
   } catch (err: any) {
-    console.error("DEBUG: Binance raw error in executeTradeInternal:", err);
+    if (!isQuotaError(err))
+      console.error("DEBUG: Binance raw error in executeTradeInternal:", err);
     if (err.response) {
-      console.error(
-        "DEBUG: Binance response data in executeTradeInternal:",
-        err.response.data,
-      );
+      if (!isQuotaError(err))
+        console.error(
+          "DEBUG: Binance response data in executeTradeInternal:",
+          err.response.data,
+        );
     }
     let details = "";
     if (err.response?.status === 401 || err.message?.includes("401")) {
@@ -2176,10 +2154,11 @@ async function startBot(
                           saveBotState();
                           saveWallet();
                         } catch (saveErr) {
-                          console.error(
-                            "[Save error] Kunne ikke gemme bot-tilstand efter emergency rebalance:",
-                            saveErr,
-                          );
+                          if (!isQuotaError(saveErr))
+                            console.error(
+                              "[Save error] Kunne ikke gemme bot-tilstand efter emergency rebalance:",
+                              saveErr,
+                            );
                         }
                         emergencyRebalanced = true;
 
@@ -2197,10 +2176,11 @@ async function startBot(
                           );
                         }
                       } catch (sellErr: any) {
-                        console.error(
-                          "[Emergency] Failed to execute Emergency Rebalance SELL:",
-                          sellErr,
-                        );
+                        if (!isQuotaError(sellErr))
+                          console.error(
+                            "[Emergency] Failed to execute Emergency Rebalance SELL:",
+                            sellErr,
+                          );
                       }
                     }
                   }
@@ -2260,19 +2240,21 @@ async function startBot(
                                 botState.enableAutoStopLoss,
                               );
                             } catch (restartErr: any) {
-                              console.error(
-                                "[Auto Switch] Kunne ikke genstarte bot med nyt handelspar:",
-                                restartErr,
-                              );
+                              if (!isQuotaError(restartErr))
+                                console.error(
+                                  "[Auto Switch] Kunne ikke genstarte bot med nyt handelspar:",
+                                  restartErr,
+                                );
                             }
                           }, 1000);
                         }
                       }
                     } catch (switchErr) {
-                      console.error(
-                        "[Auto Switch] Fejl under forsøg på automatisk skift:",
-                        switchErr,
-                      );
+                      if (!isQuotaError(switchErr))
+                        console.error(
+                          "[Auto Switch] Fejl under forsøg på automatisk skift:",
+                          switchErr,
+                        );
                     }
 
                     if (!autoSwitched) {
@@ -2305,10 +2287,11 @@ async function startBot(
                   try {
                     saveBotState();
                   } catch (saveErr) {
-                    console.error(
-                      "[Save error] Kunne ikke gemme bot-tilstand efter succesfuld entry:",
-                      saveErr,
-                    );
+                    if (!isQuotaError(saveErr))
+                      console.error(
+                        "[Save error] Kunne ikke gemme bot-tilstand efter succesfuld entry:",
+                        saveErr,
+                      );
                   }
                 }
               } else {
@@ -2395,18 +2378,20 @@ async function startBot(
                             botState.enableAutoStopLoss,
                           );
                         } catch (restartErr: any) {
-                          console.error(
-                            "[Auto Switch Sim] Kunne ikke genstarte bot med nyt handelspar:",
-                            restartErr,
-                          );
+                          if (!isQuotaError(restartErr))
+                            console.error(
+                              "[Auto Switch Sim] Kunne ikke genstarte bot med nyt handelspar:",
+                              restartErr,
+                            );
                         }
                       }, 1000);
                     }
                   } catch (switchErr) {
-                    console.error(
-                      "[Auto Switch Sim] Fejl under forsøg på automatisk skift:",
-                      switchErr,
-                    );
+                    if (!isQuotaError(switchErr))
+                      console.error(
+                        "[Auto Switch Sim] Fejl under forsøg på automatisk skift:",
+                        switchErr,
+                      );
                   }
 
                   if (!autoSwitched) {
@@ -2766,7 +2751,7 @@ async function startBot(
           `[DCA] Executed buy for ${symbol}: ${alloc} USDT @ ${finalPrice}`,
         );
       } catch (e) {
-        console.error(`[DCA] Error executing trade:`, e);
+        if (!isQuotaError(e)) console.error(`[DCA] Error executing trade:`, e);
       }
     }, intervalMs);
   }
@@ -2779,7 +2764,8 @@ app.post("/api/bot/keys", async (req, res) => {
   try {
     await setDoc(doc(db, "systemState", "botConfig"), botState);
   } catch (err) {
-    console.error("[Firebase] Error saving bot keys immediately:", err);
+    if (!isQuotaError(err))
+      console.error("[Firebase] Error saving bot keys immediately:", err);
   }
   res.json({ success: true });
 });
@@ -2787,25 +2773,21 @@ app.post("/api/bot/keys", async (req, res) => {
 app.post("/api/bot/start", async (req, res) => {
   try {
     if (botState.maintenanceMode) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "Systemet er i vedligeholdelsestilstand. Trading bots kan ikke startes før vedligeholdelse afsluttes.",
-          maintenanceActive: true,
-        });
+      return res.status(403).json({
+        error:
+          "Systemet er i vedligeholdelsestilstand. Trading bots kan ikke startes før vedligeholdelse afsluttes.",
+        maintenanceActive: true,
+      });
     }
 
     await calculateDailyFee();
     if (botState.unpaidFee && botState.unpaidFee > 0) {
-      return res
-        .status(403)
-        .json({
-          error: `You have an outstanding profit-share fee of ${botState.unpaidFee.toFixed(2)}. Please pay to unlock the AI Trader.`,
-          feeRequired: true,
-          amount: botState.unpaidFee,
-          botState,
-        });
+      return res.status(403).json({
+        error: `You have an outstanding profit-share fee of ${botState.unpaidFee.toFixed(2)}. Please pay to unlock the AI Trader.`,
+        feeRequired: true,
+        amount: botState.unpaidFee,
+        botState,
+      });
     }
 
     const {
@@ -2859,19 +2841,12 @@ app.post("/api/bot/start", async (req, res) => {
     );
     res.json({ success: true, botState });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     res.status(500).json({ error: error.message || "Failed to start bot" });
   }
@@ -2882,19 +2857,12 @@ app.post("/api/bot/stop", async (req, res) => {
     await stopBot();
     res.json({ success: true, botState });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     res.status(500).json({ error: error.message || "Failed to stop bot" });
   }
@@ -3126,19 +3094,12 @@ app.post("/api/bot/backtest", async (req, res) => {
           : 0,
     });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     res.status(500).json({ error: error.message || "Backtest fejl" });
   }
@@ -3199,14 +3160,12 @@ app.get("/api/backtest-data", async (req, res) => {
 
     return res.json(mapped);
   } catch (err: any) {
-    console.error("Error in backtest-data:", err);
-    res
-      .status(500)
-      .json({
-        error:
-          "Failed to fetch historical data from both Binance and Yahoo Finance.",
-        details: err.message,
-      });
+    if (!isQuotaError(err)) console.error("Error in backtest-data:", err);
+    res.status(500).json({
+      error:
+        "Failed to fetch historical data from both Binance and Yahoo Finance.",
+      details: err.message,
+    });
   }
 });
 
@@ -3247,7 +3206,7 @@ app.get("/api/ticker-24h", async (req, res) => {
       priceChangePercent: (quote as any).regularMarketChangePercent || 0,
     });
   } catch (err: any) {
-    console.error("Error in ticker-24h:", err);
+    if (!isQuotaError(err)) console.error("Error in ticker-24h:", err);
     res
       .status(500)
       .json({ error: "Failed to fetch 24h stats", details: err.message });
@@ -3289,7 +3248,7 @@ app.get("/api/ticker-1h", async (req, res) => {
       priceChangePercent: 0,
     });
   } catch (err: any) {
-    console.error("Error in ticker-1h:", err);
+    if (!isQuotaError(err)) console.error("Error in ticker-1h:", err);
     res
       .status(500)
       .json({ error: "Failed to fetch 1h stats", details: err.message });
@@ -3349,19 +3308,12 @@ app.post("/api/wallet/update", async (req, res) => {
     await saveWallet();
     res.json({ success: true, spot: simulatedWallet.spot });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Wallet update error:", error);
     res
@@ -3374,11 +3326,9 @@ app.post("/api/wallet/reset-to-live", async (req, res) => {
   try {
     const creds = await getBinanceCredentials(req, req.headers);
     if (!creds.apiKey || !creds.apiSecret) {
-      return res
-        .status(400)
-        .json({
-          error: "Ingen gyldige Binance API-nøgler fundet til at synkronisere.",
-        });
+      return res.status(400).json({
+        error: "Ingen gyldige Binance API-nøgler fundet til at synkronisere.",
+      });
     }
 
     const client = new Spot(creds.apiKey, creds.apiSecret);
@@ -3430,14 +3380,13 @@ app.post("/api/wallet/reset-to-live", async (req, res) => {
       earn: simulatedWallet.earn,
     });
   } catch (error: any) {
-    console.error("Error resetting demowallet to live:", error);
-    res
-      .status(500)
-      .json({
-        error:
-          "Kunne ikke nulstille demowallet til ægte wallet: " +
-          (error.response?.data?.msg || error.message),
-      });
+    if (!isQuotaError(error))
+      console.error("Error resetting demowallet to live:", error);
+    res.status(500).json({
+      error:
+        "Kunne ikke nulstille demowallet til ægte wallet: " +
+        (error.response?.data?.msg || error.message),
+    });
   }
 });
 
@@ -3507,19 +3456,12 @@ app.get("/api/market/scan", async (req, res) => {
       allScanned: sorted.slice(0, 10),
     });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     res
       .status(500)
@@ -3617,7 +3559,7 @@ Formatter svaret med markdown overskrifter (f.eks. **1. MARKEDSKONTEKST & STRATE
       summaryText =
         response.text || "Kunne ikke generere en detaljeret opsummering.";
     } catch (e: any) {
-      console.error("Gemini failed for daily summary", e);
+      if (!isQuotaError(e)) console.error("Gemini failed for daily summary", e);
       summaryText = `### 1. MARKEDSKONTEKST & STRATEGIEVALG
 Handelssystemet opererede i dag under den aktive strategi "${strategyName}" for aktivet ${symbol} i et marked, der lukkede med en 24t variation på ${changeText}. 
 
@@ -3633,19 +3575,12 @@ Det anbefales at fortsætte drift med den nuværende risikogearingsmodel, men ov
 
     res.json({ summaryText, date: new Date().toISOString() });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Daily summary error:", error);
     res.status(500).json({ error: "Failed to generate daily summary." });
@@ -3711,19 +3646,12 @@ Giv et skarpt, velstruktureret og detaljeret svar på dansk ved brug af finansie
       reply: response.text || "Kunne ikke generere et svar fra AI strategen.",
     });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Daily summary chat error:", error);
     res.status(500).json({ error: "Failed to answer follow-up query." });
@@ -3767,31 +3695,18 @@ app.post("/api/trade-explanation", async (req, res) => {
 
     res.json({ explanation: fullOutput.trim() });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
-    if (
-      error?.status === 429 ||
-      String(error).includes("429") ||
-      String(error).includes("RESOURCE_EXHAUSTED")
-    ) {
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio.",
-        });
+    if (isQuotaError(error)) {
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio.",
+      });
     }
     console.error("Explanation error:", error);
     res.status(500).json({ error: "Kunne ikke hente forklaring." });
@@ -3884,24 +3799,18 @@ app.post("/api/gemini/analyze-market", async (req, res) => {
         reason = parsed.reason || reason;
       }
     } catch (e) {
-      console.error("Failed to parse Gemini output", fullOutput);
+      if (!isQuotaError(e))
+        console.error("Failed to parse Gemini output", fullOutput);
     }
 
     res.json({ action, reason });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Market analysis error:", error);
     res.status(500).json({ error: "Failed to analyze market." });
@@ -3957,31 +3866,18 @@ app.post("/api/portfolio-rebalance", async (req, res) => {
 
     res.json({ suggestion: fullOutput.trim(), targets });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
-    if (
-      error?.status === 429 ||
-      String(error).includes("429") ||
-      String(error).includes("RESOURCE_EXHAUSTED")
-    ) {
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio.",
-        });
+    if (isQuotaError(error)) {
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio.",
+      });
     }
     console.error("Rebalance error:", error);
     res
@@ -4055,39 +3951,24 @@ app.post("/api/trade-analysis", async (req, res) => {
       throw new Error("Kunne ikke parse agentens respons");
     }
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
-    if (
-      error?.status === 429 ||
-      String(error).includes("429") ||
-      String(error).includes("RESOURCE_EXHAUSTED")
-    ) {
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio. Ingen mock data tilladt.",
-        });
+    if (isQuotaError(error)) {
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio. Ingen mock data tilladt.",
+      });
     }
     console.error("Analysis error:", error);
-    res
-      .status(500)
-      .json({
-        error:
-          "Der opstod en fejl under analysen. Tjek dine API-nøgler eller netværksforbindelse. Ingen mock data tilladt.",
-      });
+    res.status(500).json({
+      error:
+        "Der opstod en fejl under analysen. Tjek dine API-nøgler eller netværksforbindelse. Ingen mock data tilladt.",
+    });
   }
 });
 
@@ -4149,7 +4030,7 @@ app.post("/api/chat", async (req, res) => {
       res.json({ response: response.text });
     }
   } catch (error) {
-    console.error("Chat API Error:", error);
+    if (!isQuotaError(error)) console.error("Chat API Error:", error);
     res.status(500).json({ error: "Failed to generate response" });
   }
 });
@@ -4171,7 +4052,7 @@ app.get("/api/stock/quote", async (req, res) => {
       timestamp: Date.now(),
     });
   } catch (err: any) {
-    console.error("Stock quote fetch error:", err);
+    if (!isQuotaError(err)) console.error("Stock quote fetch error:", err);
     res.status(500).json({ error: "Failed to fetch stock quote" });
   }
 });
@@ -4296,7 +4177,7 @@ app.get("/api/market-correlation", async (req, res) => {
       timestamp: Date.now(),
     });
   } catch (err: any) {
-    console.error("Correlation fetch error:", err);
+    if (!isQuotaError(err)) console.error("Correlation fetch error:", err);
     res.status(500).json({ error: "Failed to fetch correlation" });
   }
 });
@@ -4400,13 +4281,11 @@ app.post("/api/predict", async (req, res) => {
       maeHistory: Array.from({ length: 30 }, () => Math.random() * 5),
     });
   } catch (error) {
-    console.error("Prediction error:", error);
-    res
-      .status(500)
-      .json({
-        error: "Kunne ikke forudsige prisændringer.",
-        details: String(error),
-      });
+    if (!isQuotaError(error)) console.error("Prediction error:", error);
+    res.status(500).json({
+      error: "Kunne ikke forudsige prisændringer.",
+      details: String(error),
+    });
   }
 });
 
@@ -4503,7 +4382,7 @@ app.post("/api/retrain", async (req, res) => {
       maeHistory: Array.from({ length: 30 }, () => Math.random() * 5),
     });
   } catch (error) {
-    console.error("Retrain error:", error);
+    if (!isQuotaError(error)) console.error("Retrain error:", error);
     res.status(500).json({ error: "Kunne ikke genoptræne modellen." });
   }
 });
@@ -4539,19 +4418,12 @@ app.post("/api/synthesize", async (req, res) => {
 
     res.json({ audio: base64Audio });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Synthesize error:", error);
     res.status(500).json({ error: "Failed to synthesize speech" });
@@ -4601,39 +4473,24 @@ app.post("/api/news", async (req, res) => {
     setCache(cacheKey, responseData);
     res.json(responseData);
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
-    if (
-      error?.status === 429 ||
-      String(error).includes("429") ||
-      String(error).includes("RESOURCE_EXHAUSTED")
-    ) {
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio. Ingen mock data tilladt.",
-        });
+    if (isQuotaError(error)) {
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Tjek din fakturering i Google Cloud/AI Studio. Ingen mock data tilladt.",
+      });
     }
     console.error("News error:", error);
-    res
-      .status(500)
-      .json({
-        error:
-          "Kunne ikke hente nyheder. Tjek dine API-nøgler. Ingen mock data tilladt.",
-      });
+    res.status(500).json({
+      error:
+        "Kunne ikke hente nyheder. Tjek dine API-nøgler. Ingen mock data tilladt.",
+    });
   }
 });
 
@@ -4706,13 +4563,11 @@ app.get("/api/binance/wallet", async (req, res) => {
         (b: any) => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0,
       );
     } catch (err: any) {
-      return res
-        .status(500)
-        .json({
-          error:
-            "Failed to fetch top data from Binance API: " +
-            (err.response?.data?.msg || err.message),
-        });
+      return res.status(500).json({
+        error:
+          "Failed to fetch top data from Binance API: " +
+          (err.response?.data?.msg || err.message),
+      });
     }
 
     // Fetch Flexible Earn Balances
@@ -4735,19 +4590,12 @@ app.get("/api/binance/wallet", async (req, res) => {
       isSimulated: false,
     });
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Wallet fetch error:", error);
     res.status(500).json({ error: "Failed to fetch real wallet data." });
@@ -4796,19 +4644,12 @@ app.post("/api/binance/execute", async (req, res) => {
       throw new Error(`Binance Order Error: ${details}`);
     }
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Error executing Binance trade:", error);
     res
@@ -4839,7 +4680,8 @@ async function executePaperTrade(
       const data = await res.json();
       currentPrice = parseFloat(data.price);
     } catch (err) {
-      console.error("Failed to fetch price for paper trade:", err);
+      if (!isQuotaError(err))
+        console.error("Failed to fetch price for paper trade:", err);
     }
   }
 
@@ -5040,19 +4882,12 @@ app.post("/api/trade/execute", async (req, res) => {
       res.json({ success: true, result, isPaper: true, smartRoute });
     }
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Error executing trade:", error);
     res.status(500).json({ error: error.message || "Could not execute trade" });
@@ -5066,19 +4901,12 @@ app.get("/api/fear-and-greed", async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
     console.error("Fear and greed proxy error:", error);
     res.status(500).json({ error: error.message });
@@ -5128,25 +4956,14 @@ app.post("/api/bot/ml-forecast", async (req, res) => {
     const parsedData = JSON.parse(jsonMatch[1]);
     res.json(parsedData);
   } catch (error: any) {
-    if (
-      error?.status === 429 ||
-      error?.message?.includes("429") ||
-      error?.message?.includes("too_many_requests") ||
-      error?.message?.includes("depleted")
-    ) {
+    if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
-      return res
-        .status(429)
-        .json({
-          error:
-            "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
-        });
+      return res.status(429).json({
+        error:
+          "API kvote overskredet (429). Din saldo er opbrugt eller rate limit nået.",
+      });
     }
-    if (
-      error?.status === 429 ||
-      String(error).includes("429") ||
-      String(error).includes("RESOURCE_EXHAUSTED")
-    ) {
+    if (isQuotaError(error)) {
       return res.status(429).json({ error: "API kvote overskredet (429)." });
     }
     console.error("ML Forecast error:", error);
@@ -5427,10 +5244,11 @@ app.get("/api/binance-proxy/*", async (req, res) => {
     binanceCache.set(cacheKey, { data, timestamp: now });
     res.json(data);
   } catch (error: any) {
-    console.error(
-      "Binance proxy caught crash error, resolving gracefully with fallback:",
-      error,
-    );
+    if (!isQuotaError(error))
+      console.error(
+        "Binance proxy caught crash error, resolving gracefully with fallback:",
+        error,
+      );
     if (cached) {
       return res.json(cached.data);
     }
