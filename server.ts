@@ -545,6 +545,32 @@ app.get('/api/bot/maintenance', (req, res) => {
    res.json({ maintenanceMode: botState.maintenanceMode || false, botState });
 });
 
+async function getSymbolExchangeInfo(client: Spot, symbol: string) {
+    try {
+        const res = await client.exchangeInfo({ symbol });
+        if (res?.data?.symbols) return res.data;
+    } catch (e) {}
+    try {
+        const res = await client.exchangeInfo({ symbols: [symbol] });
+        if (res?.data?.symbols) return res.data;
+    } catch (e) {}
+    try {
+        const res = await client.exchangeInfo();
+        if (res?.data?.symbols) return res.data;
+    } catch (e) {}
+    return null;
+}
+
+function roundStep(qty: number, stepSize: string) {
+    const step = parseFloat(stepSize);
+    if (isNaN(step) || step <= 0) return qty;
+    const stepStr = stepSize.replace(/\.?0+$/, ""); // remove trailing zeros
+    const parts = stepStr.split(".");
+    const decimals = parts.length > 1 ? parts[1].length : 0;
+    const factor = Math.pow(10, decimals);
+    return Math.floor(qty * factor) / factor;
+}
+
 async function executeTradeInternal(symbol: string, side: string, allocation: number, customApiKey?: string, customApiSecret?: string) {
     const apiKey = customApiKey || botState.userApiKey || process.env.BINANCE_API_KEY;
     const apiSecret = customApiSecret || botState.userApiSecret || process.env.BINANCE_API_SECRET;
@@ -555,53 +581,166 @@ async function executeTradeInternal(symbol: string, side: string, allocation: nu
 
     const client = new Spot(apiKey, apiSecret);
     delete botState.lastError;
-    const priceRes = await client.tickerPrice(symbol);
-    const currentPrice = parseFloat(priceRes.data.price);
+    
+    try {
+        const priceRes = await client.tickerPrice(symbol);
+        const currentPrice = parseFloat(priceRes.data.price);
 
-    if (allocation < 10) {
-        const errMsg = "Minimum order size on Binance is 10 USDT/USDC. Please increase your allocation.";
+        if (allocation < 10) {
+            const errMsg = "Minimum order size on Binance is 10 USDT/USDC. Please increase your allocation.";
+            botState.lastError = errMsg;
+            botState.lastErrorTime = Date.now();
+            throw new Error(errMsg);
+        }
+
+        let formattedAllocation = allocation;
+        if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
+            formattedAllocation = Math.floor(allocation * 100) / 100; // Force 2 decimals max for stablecoins
+        } else {
+            formattedAllocation = Math.floor(allocation * 100000) / 100000;
+        }
+
+        // Fetch exchange info to respect stepSize and quoteOrderQtyMarketAllowed
+        const exchangeData = await getSymbolExchangeInfo(client, symbol);
+        const symbolInfo = exchangeData?.symbols?.find((s: any) => s.symbol === symbol);
+        let stepSize = '0.00001'; // Default fallback
+        let quoteOrderQtyMarketAllowed = true; // Default fallback
+        
+        if (symbolInfo) {
+            if (symbolInfo.quoteOrderQtyMarketAllowed !== undefined) {
+                quoteOrderQtyMarketAllowed = symbolInfo.quoteOrderQtyMarketAllowed;
+            }
+            const lotSizeFilter = symbolInfo.filters?.find((f: any) => f.filterType === 'LOT_SIZE');
+            const marketLotSizeFilter = symbolInfo.filters?.find((f: any) => f.filterType === 'MARKET_LOT_SIZE') || lotSizeFilter;
+            if (marketLotSizeFilter && marketLotSizeFilter.stepSize) {
+                stepSize = marketLotSizeFilter.stepSize;
+            }
+        }
+
+        let orderData;
+        let orderExecuted = false;
+
+        if (side === 'BUY') {
+            // Try buying with quoteOrderQty first if supported
+            if (quoteOrderQtyMarketAllowed) {
+                try {
+                    const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quoteOrderQty: formattedAllocation.toString(), recvWindow: 60000 });
+                    orderData = orderRes.data;
+                    orderExecuted = true;
+                } catch (err: any) {
+                    const errMsg = err.response?.data?.msg || err.message || "";
+                    // If it is a balance issue or invalid order error, try fallback to quantity buy with safety margin
+                    if (err.response?.data?.code === -2010 || errMsg.toLowerCase().includes("insufficient balance") || errMsg.toLowerCase().includes("balance")) {
+                        console.log("[executeTradeInternal] quoteOrderQty BUY failed with balance error. Falling back to quantity-based BUY...");
+                    } else {
+                        throw err; // For other errors (e.g. keys, connection), propagate it immediately
+                    }
+                }
+            }
+
+            // Fallback or explicit quantity-based BUY
+            if (!orderExecuted) {
+                // Get available free balance of the quote asset
+                const accountRes = await client.account();
+                const balances = accountRes.data.balances || [];
+                const quoteAsset = symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))));
+                const quoteBalanceObj = balances.find((b: any) => b.asset === quoteAsset);
+                const freeQuoteBalance = quoteBalanceObj ? parseFloat(quoteBalanceObj.free) : 0;
+
+                // Target allocation capped to free balance, using a 2% buffer for fees/slippage
+                const maxSpend = Math.min(formattedAllocation, freeQuoteBalance) * 0.98;
+                let targetQty = maxSpend / currentPrice;
+                let formattedQty = roundStep(targetQty, stepSize);
+
+                if (formattedQty * currentPrice < 10) {
+                    throw new Error(`Købsværdi ($${(formattedQty * currentPrice).toFixed(2)}) er under Binance's minimumsgrænse på 10 USD. Forøg din saldo eller din allokering.`);
+                }
+
+                try {
+                    const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQty.toString(), recvWindow: 60000 });
+                    orderData = orderRes.data;
+                    orderExecuted = true;
+                } catch (err: any) {
+                    // If still failing, try one more time scaling down further (4% buffer)
+                    console.log("[executeTradeInternal] quantity-based BUY failed. Retrying with larger safety buffer...");
+                    const maxSpendRetry = Math.min(formattedAllocation, freeQuoteBalance) * 0.96;
+                    let targetQtyRetry = maxSpendRetry / currentPrice;
+                    let formattedQtyRetry = roundStep(targetQtyRetry, stepSize);
+                    
+                    if (formattedQtyRetry * currentPrice >= 10) {
+                        const orderRes = await client.newOrder(symbol, 'BUY', 'MARKET', { quantity: formattedQtyRetry.toString(), recvWindow: 60000 });
+                        orderData = orderRes.data;
+                        orderExecuted = true;
+                    } else {
+                        throw err;
+                    }
+                }
+            }
+        } else {
+            // side === 'SELL'
+            // For selling, we always use quantity to be safe and avoid quoteOrderQty issues.
+            const accountRes = await client.account();
+            const balances = accountRes.data.balances || [];
+            const baseAsset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
+            const baseBalanceObj = balances.find((b: any) => b.asset === baseAsset);
+            const freeBaseBalance = baseBalanceObj ? parseFloat(baseBalanceObj.free) : 0;
+
+            let targetQty = formattedAllocation / currentPrice;
+            let finalQty = Math.min(targetQty, freeBaseBalance);
+
+            // If requested to sell almost all of our free balance (97%+), sell everything to avoid leaving small dust in the wallet
+            if (finalQty >= freeBaseBalance * 0.97) {
+                finalQty = freeBaseBalance;
+            }
+
+            let formattedQty = roundStep(finalQty, stepSize);
+
+            if (formattedQty * currentPrice < 10) {
+                // Try to force selling the entire base balance if we are cleaning up, otherwise we let Binance report the LOT_SIZE/MIN_NOTIONAL error
+                formattedQty = roundStep(freeBaseBalance, stepSize);
+            }
+
+            try {
+                const orderRes = await client.newOrder(symbol, 'SELL', 'MARKET', { quantity: formattedQty.toString(), recvWindow: 60000 });
+                orderData = orderRes.data;
+            } catch (err: any) {
+                console.error("DEBUG: Binance raw SELL error:", err);
+                if (err.response) {
+                    console.error("DEBUG: Binance response data on SELL:", err.response.data);
+                }
+                throw err;
+            }
+        }
+
+        if (!orderData) {
+            throw new Error("Could not execute trade: Order data is empty");
+        }
+
+        const fillPrice = orderData.fills && orderData.fills.length > 0 ? parseFloat(orderData.fills[0].price) : currentPrice;
+        const totalCommission = (orderData.fills || []).reduce((sum: number, f: any) => sum + parseFloat(f.commission || '0'), 0);
+
+        return {
+          price: fillPrice,
+          orderId: orderData.orderId ? String(orderData.orderId) : undefined,
+          fee: totalCommission,
+          txHash: orderData.orderId ? String(orderData.orderId) : undefined // Binance spot has no on-chain tx hash; orderId is the canonical reference
+        };
+    } catch (err: any) {
+        console.error("DEBUG: Binance raw error in executeTradeInternal:", err);
+        if (err.response) {
+            console.error("DEBUG: Binance response data in executeTradeInternal:", err.response.data);
+        }
+        let details = "";
+        if (err.response?.status === 401 || err.message?.includes("401")) {
+           details = "Binance API-nøglerne er ugyldige eller uautoriserede (401 Unauthorized). Kontroller venligst dine gemte mæglernøgler på din konto.";
+        } else {
+           details = err.response?.data?.msg || err.message || (err.response?.data ? JSON.stringify(err.response.data) : null) || err;
+        }
+        const errMsg = `Binance Order Error: ${details}`;
         botState.lastError = errMsg;
         botState.lastErrorTime = Date.now();
         throw new Error(errMsg);
     }
-
-    let formattedAllocation = allocation;
-    if (symbol.endsWith('USDT') || symbol.endsWith('USDC') || symbol.endsWith('EUR')) {
-        formattedAllocation = Math.floor(allocation * 100) / 100; // Force 2 decimals max for stablecoins
-    } else {
-        formattedAllocation = Math.floor(allocation * 100000) / 100000;
-    }
-
-    let orderData;
-    try {
-      const orderRes = await client.newOrder(symbol, side, 'MARKET', { quoteOrderQty: formattedAllocation.toString(), recvWindow: 60000 });
-      orderData = orderRes.data;
-    } catch (err: any) {
-      console.error("DEBUG: Binance raw error:", err);
-      if (err.response) {
-          console.error("DEBUG: Binance response data:", err.response.data);
-      }
-      let details = "";
-      if (err.response?.status === 401 || err.message?.includes("401")) {
-         details = "Binance API-nøglerne er ugyldige eller uautoriserede (401 Unauthorized). Kontroller venligst dine gemte mæglernøgler på din konto.";
-      } else {
-         details = err.response?.data?.msg || err.message || (err.response?.data ? JSON.stringify(err.response.data) : null) || err;
-      }
-      const errMsg = `Binance Order Error: ${details}`;
-      botState.lastError = errMsg;
-      botState.lastErrorTime = Date.now();
-      throw new Error(errMsg);
-    }
-
-    const fillPrice = orderData.fills && orderData.fills.length > 0 ? parseFloat(orderData.fills[0].price) : currentPrice;
-    const totalCommission = (orderData.fills || []).reduce((sum: number, f: any) => sum + parseFloat(f.commission || '0'), 0);
-
-    return {
-      price: fillPrice,
-      orderId: orderData.orderId ? String(orderData.orderId) : undefined,
-      fee: totalCommission,
-      txHash: orderData.orderId ? String(orderData.orderId) : undefined // Binance spot has no on-chain tx hash; orderId is the canonical reference
-    };
 }
 
 async function startBot(symbol: string, allocation: number, isLiveTrading: boolean, takeProfit: number, stopLoss: number, strategy: string, useTrailingStop?: boolean, dynamicSizing?: boolean, maxRiskPerTrade?: number, diversifySectors?: boolean, stopLossType?: 'percentage' | 'fixed', autoAdjustVolatility?: boolean, useNewsSentiment?: boolean, circuitBreakerLimit?: number, enableDCA?: boolean, dcaIntervalHours?: number, dcaAllocation?: number, enableAutoStopLoss?: boolean) {
