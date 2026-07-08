@@ -5173,6 +5173,13 @@ const binanceCache = new Map<string, { data: any; timestamp: number }>();
 
 app.get("/api/binance-proxy/*", async (req, res) => {
   const endpoint = req.params[0];
+
+  // Security Fix: Restrict allowed endpoints to prevent SSRF and unauthorized proxying
+  const allowedEndpoints = ['klines', 'ticker/24hr', 'ticker/price'];
+  if (!allowedEndpoints.includes(endpoint)) {
+    return res.status(403).json({ error: 'Forbidden: Endpoint not allowed' });
+  }
+
   const queryEntries = Object.entries(req.query);
   const queryString = queryEntries.map(([k, v]) => `${k}=${v}`).join("&");
   const url = `https://api.binance.com/api/v3/${endpoint}${queryString ? "?" + queryString : ""}`;
