@@ -1100,14 +1100,38 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
           // Circuit Breaker Logic
           if (botState.circuitBreakerLimit) {
               const today = new Date().toISOString().split('T')[0];
+
+              let spotDict = null;
+              const getWalletValues = () => {
+                  if (!spotDict) {
+                      spotDict = {};
+                      for (let i = 0; i < simulatedWallet.spot.length; i++) {
+                          const s = simulatedWallet.spot[i];
+                          spotDict[s.asset] = s;
+                      }
+                  }
+
+                  const baseAsset = botState.symbol.replace(/USDT$|USDC$|BTC$|ETH$|BNB$|EUR$/, '');
+                  let usdtObj = spotDict['USDT'] || spotDict['USDC'] || spotDict['USD'];
+                  if (!usdtObj) {
+                     const usdKey = Object.keys(spotDict).find(k => k.includes('USD'));
+                     if (usdKey) usdtObj = spotDict[usdKey];
+                  }
+                  const assetObj = spotDict[baseAsset];
+
+                  const usdt = parseFloat(usdtObj?.free || '0');
+                  const usdtLocked = parseFloat(usdtObj?.locked || '0');
+                  const asset = parseFloat(assetObj?.free || '0');
+
+                  return { usdt, usdtLocked, asset };
+              };
+
               if (botState.circuitBreakerDate !== today) {
                   botState.circuitBreakerDate = today;
                   let startVal = 1000;
                   if (!botState.isLiveTrading) {
-                     const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
-                     const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
-                     const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
-                     startVal = usdt + usdtLocked + (asset * currentP);
+                     const vals = getWalletValues();
+                     startVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
                   }
                   botState.dailyStartPortfolioValue = startVal > 0 ? startVal : 1000;
                   botState.circuitBreakerTripped = false;
@@ -1115,10 +1139,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
               } else if (!botState.circuitBreakerTripped && botState.dailyStartPortfolioValue) {
                   let currentVal = botState.dailyStartPortfolioValue;
                   if (!botState.isLiveTrading) {
-                     const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
-                     const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
-                     const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
-                     currentVal = usdt + usdtLocked + (asset * currentP);
+                     const vals = getWalletValues();
+                     currentVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
                   } else {
                      let unrealizedPnl = 0;
                      botState.activePositionsList.forEach(pos => {
@@ -1347,14 +1369,38 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
         // Circuit Breaker Logic
         if (botState.circuitBreakerLimit) {
             const today = new Date().toISOString().split('T')[0];
+
+            let spotDict = null;
+            const getWalletValues = () => {
+                if (!spotDict) {
+                    spotDict = {};
+                    for (let i = 0; i < simulatedWallet.spot.length; i++) {
+                        const s = simulatedWallet.spot[i];
+                        spotDict[s.asset] = s;
+                    }
+                }
+
+                const baseAsset = botState.symbol.replace(/USDT$|USDC$|BTC$|ETH$|BNB$|EUR$/, '');
+                let usdtObj = spotDict['USDT'] || spotDict['USDC'] || spotDict['USD'];
+                if (!usdtObj) {
+                   const usdKey = Object.keys(spotDict).find(k => k.includes('USD'));
+                   if (usdKey) usdtObj = spotDict[usdKey];
+                }
+                const assetObj = spotDict[baseAsset];
+
+                const usdt = parseFloat(usdtObj?.free || '0');
+                const usdtLocked = parseFloat(usdtObj?.locked || '0');
+                const asset = parseFloat(assetObj?.free || '0');
+
+                return { usdt, usdtLocked, asset };
+            };
+
             if (botState.circuitBreakerDate !== today) {
                 botState.circuitBreakerDate = today;
                 let startVal = 1000;
                 if (!botState.isLiveTrading) {
-                   const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
-                   const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
-                   const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
-                   startVal = usdt + usdtLocked + (asset * currentP);
+                   const vals = getWalletValues();
+                   startVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
                 }
                 botState.dailyStartPortfolioValue = startVal > 0 ? startVal : 1000;
                 botState.circuitBreakerTripped = false;
@@ -1362,10 +1408,8 @@ async function startBot(symbol: string, allocation: number, isLiveTrading: boole
             } else if (!botState.circuitBreakerTripped && botState.dailyStartPortfolioValue) {
                 let currentVal = botState.dailyStartPortfolioValue;
                 if (!botState.isLiveTrading) {
-                   const usdt = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.free || '0');
-                   const usdtLocked = parseFloat(simulatedWallet.spot.find(s => s.asset.includes('USD'))?.locked || '0');
-                   const asset = parseFloat(simulatedWallet.spot.find(s => botState.symbol.startsWith(s.asset))?.free || '0');
-                   currentVal = usdt + usdtLocked + (asset * currentP);
+                   const vals = getWalletValues();
+                   currentVal = vals.usdt + vals.usdtLocked + (vals.asset * currentP);
                 } else {
                    let unrealizedPnl = 0;
                    botState.activePositionsList.forEach(pos => {
