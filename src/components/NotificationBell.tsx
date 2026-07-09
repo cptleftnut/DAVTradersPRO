@@ -15,7 +15,9 @@ export function NotificationBell({ alerts }: { alerts: Alert[] }) {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors relative"
+        className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+        aria-label="Notifikationer"
+        aria-expanded={isOpen}
       >
         <Bell className="size-5 text-gray-400" />
         {alerts.length > 0 && (
@@ -33,7 +35,13 @@ export function NotificationBell({ alerts }: { alerts: Alert[] }) {
           >
             <div className="flex justify-between items-center mb-4">
               <h4 className="font-bold text-white">Notifikationer</h4>
-              <X onClick={() => setIsOpen(false)} className="size-4 text-gray-500 cursor-pointer hover:text-white" />
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded"
+                aria-label="Luk notifikationer"
+              >
+                <X className="size-4" />
+              </button>
             </div>
             {alerts.length === 0 ? (
               <p className="text-gray-500 text-sm italic">Ingen nye notifikationer.</p>
