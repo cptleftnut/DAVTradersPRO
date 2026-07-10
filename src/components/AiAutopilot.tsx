@@ -340,7 +340,13 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                 <div className="flex items-center gap-2">
                     <BrainCircuit className="size-4 text-purple-500" /> ML Prognose
                 </div>
-                <button onClick={runForecast} className="p-1 hover:bg-gray-800 rounded text-gray-500 hover:text-gray-300 transition-colors">
+                <button
+                  onClick={runForecast}
+                  className="p-1 hover:bg-gray-800 rounded text-gray-500 hover:text-gray-300 transition-colors focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Opdater prognose"
+                  title="Opdater prognose"
+                  disabled={isForecasting}
+                >
                     <RefreshCw className={`size-3.5 ${isForecasting ? 'animate-spin' : ''}`} />
                 </button>
              </h3>
@@ -374,7 +380,13 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
              ) : (
                  <div className="text-center py-4 border border-dashed border-gray-800 rounded-lg">
                     <p className="text-[10px] text-gray-500 uppercase">Ingen data for {formatSymbol(symbol)}</p>
-                    <button onClick={runForecast} className="mt-2 text-xs text-purple-400 hover:text-purple-300">Kør analyse nu</button>
+                    <button
+                      onClick={runForecast}
+                      className="mt-2 text-xs text-purple-400 hover:text-purple-300 focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:outline-none rounded px-2 py-1 transition-colors disabled:opacity-50"
+                      disabled={isForecasting}
+                    >
+                      Kør analyse nu
+                    </button>
                  </div>
              )}
           </div>
@@ -416,10 +428,20 @@ export const AiAutopilot = React.memo(function AiAutopilot({ symbol = 'BTCUSDT',
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
-                             <button onClick={() => approveSignal(signal.id, signal.symbol, signal.type)} className="p-2 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors" title="Approve Trade">
+                             <button
+                               onClick={() => approveSignal(signal.id, signal.symbol, signal.type)}
+                               className="p-2 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
+                               title="Approve Trade"
+                               aria-label={`Godkend handel for ${formatSymbol(signal.symbol)}`}
+                             >
                                <CheckCircle2 className="size-5" />
                              </button>
-                             <button onClick={() => rejectSignal(signal.id)} className="p-2 hover:bg-gray-800 text-gray-500 rounded-lg transition-colors" title="Dismiss">
+                             <button
+                               onClick={() => rejectSignal(signal.id)}
+                               className="p-2 hover:bg-gray-800 text-gray-500 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:outline-none"
+                               title="Dismiss"
+                               aria-label={`Afvis handel for ${formatSymbol(signal.symbol)}`}
+                             >
                                <XCircle className="size-5" />
                              </button>
                            </div>

@@ -1,0 +1,3 @@
+## 2026-07-10 - Add Contextual Action ARIA Labels in AiAutopilot
+**Learning:** Reusable mapping patterns for table-like entries (like "Approve Trade" and "Dismiss" buttons) often inherit poor accessibility when icon-only variants are used inside a loop. The ARIA label should dynamically contain the item context (e.g., `Godkend handel for BTCUSDT`) to ensure screen reader users have proper context.
+**Action:** When adding accessible labels inside mapped arrays or lists, interpolate key item attributes (like symbol or ID) into the `aria-label` rather than applying a generic static label to all instances.
