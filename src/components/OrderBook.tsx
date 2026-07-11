@@ -7,6 +7,14 @@ interface OrderBookEntry {
   total: number;
 }
 
+// ⚡ Bolt: Cache Intl.NumberFormat instances outside the component to prevent recreating them on every render
+// 🎯 Why: OrderBook receives frequent updates from WebSocket. Re-creating formatting objects and calling .toLocaleString()
+// inside the map loop for every ask/bid was causing unnecessary CPU overhead during the render cycle.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing pre-configured formatter objects.
+const priceAmtFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+const totalFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const spreadFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
+
 // ⚡ Bolt: Wrapped in React.memo to prevent unnecessary re-renders when parent components update
 export const OrderBook = React.memo(function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
   const [bids, setBids] = useState<OrderBookEntry[]>([]);
@@ -92,9 +100,9 @@ export const OrderBook = React.memo(function OrderBook({ symbol = "BTCUSDT" }: {
                 return (
                   <div key={`ask-${i}`} className="relative grid grid-cols-3 px-2 py-0.5 group hover:bg-gray-800/50">
                      <div className="absolute top-0 bottom-0 right-0 bg-red-500/10" style={{ width: `${width}%` }}></div>
-                     <div className="text-red-400 z-10">{price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
-                     <div className="text-gray-300 text-right z-10">{amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
-                     <div className="text-gray-500 text-right z-10">{total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                     <div className="text-red-400 z-10">{priceAmtFormatter.format(price)}</div>
+                     <div className="text-gray-300 text-right z-10">{priceAmtFormatter.format(amt)}</div>
+                     <div className="text-gray-500 text-right z-10">{totalFormatter.format(total)}</div>
                   </div>
                 )
               })}
@@ -105,7 +113,7 @@ export const OrderBook = React.memo(function OrderBook({ symbol = "BTCUSDT" }: {
                <span className="text-[10px] uppercase font-bold tracking-widest text-gray-500">Spread</span>
                {asks.length > 0 && bids.length > 0 && (
                  <span className="text-amber-400/80 font-bold">
-                   {(asks[asks.length-1].price - bids[0].price).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                   {spreadFormatter.format(asks[asks.length-1].price - bids[0].price)}
                  </span>
                )}
             </div>
@@ -118,9 +126,9 @@ export const OrderBook = React.memo(function OrderBook({ symbol = "BTCUSDT" }: {
                 return (
                   <div key={`bid-${i}`} className="relative grid grid-cols-3 px-2 py-0.5 group hover:bg-gray-800/50">
                      <div className="absolute top-0 bottom-0 right-0 bg-emerald-500/10" style={{ width: `${width}%` }}></div>
-                     <div className="text-emerald-400 z-10">{price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
-                     <div className="text-gray-300 text-right z-10">{amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
-                     <div className="text-gray-500 text-right z-10">{total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                     <div className="text-emerald-400 z-10">{priceAmtFormatter.format(price)}</div>
+                     <div className="text-gray-300 text-right z-10">{priceAmtFormatter.format(amt)}</div>
+                     <div className="text-gray-500 text-right z-10">{totalFormatter.format(total)}</div>
                   </div>
                 )
               })}
