@@ -352,8 +352,10 @@ export const TradeHistory = React.memo(function TradeHistory({ journalEntries = 
 
           <div className="relative">
             <button
+              aria-label="Indstillinger"
+              aria-expanded={showSettings}
               onClick={() => setShowSettings(!showSettings)}
-              className={`p-1.5 rounded-lg transition-colors ${showSettings ? "bg-cyan-500/20 text-cyan-400" : "text-gray-400 hover:bg-gray-800 hover:text-gray-300"}`}
+              className={`p-1.5 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:outline-none ${showSettings ? "bg-cyan-500/20 text-cyan-400" : "text-gray-400 hover:bg-gray-800 hover:text-gray-300"}`}
             >
               <Settings2 className="size-4" />
             </button>
@@ -650,9 +652,10 @@ export const TradeHistory = React.memo(function TradeHistory({ journalEntries = 
 
       <div className="p-3 border-t border-gray-800 flex items-center justify-between bg-gray-900/30">
         <button
+          aria-label="Forrige side"
           onClick={() => setPage(Math.max(1, page - 1))}
           disabled={page === 1 || loading}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:outline-none"
         >
           <ChevronLeft className="size-4" />
         </button>
@@ -663,9 +666,10 @@ export const TradeHistory = React.memo(function TradeHistory({ journalEntries = 
           </span>
         </span>
         <button
+          aria-label="Næste side"
           onClick={() => setPage(Math.min(totalPages, page + 1))}
           disabled={page === totalPages || loading}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:outline-none"
         >
           <ChevronRight className="size-4" />
         </button>
