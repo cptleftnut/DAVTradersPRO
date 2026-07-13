@@ -19,7 +19,7 @@
     "@google/genai": "^2.11.0",
     "@tailwindcss/vite": "^4.3.2",
     "@tensorflow/tfjs": "^4.22.0",
-    "@vitejs/plugin-react": "^5.0.4",
+    "@vitejs/plugin-react": "^6.0.3",
     "cors": "^2.8.6",
     "d3": "^7.9.0",
     "dotenv": "^17.2.3",
