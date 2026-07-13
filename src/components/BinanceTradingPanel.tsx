@@ -45,12 +45,12 @@ const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTak
           <div className="space-y-1 font-mono text-[10px] text-gray-300">
              <div className="flex justify-between">
                 <span className="text-gray-500">Indgang:</span>
-                <span className="text-gray-200">${entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span className="text-gray-200">${priceFormatter.format(entryPrice)}</span>
              </div>
              <div className="flex justify-between">
                 <span className="text-gray-500">Nuværende:</span>
                 <span className="text-gray-200">
-                   ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                   ${priceFormatter.format(currentPrice as any)}
                 </span>
              </div>
              <div className="flex justify-between pt-1 border-t border-gray-800/40 mt-1 items-center">
@@ -235,6 +235,15 @@ const mergePositionsLists = (prev: any[], next: any[]) => {
     return newPos;
   });
 };
+
+// ⚡ Bolt: Cache Intl.NumberFormat instances outside the component to prevent recreating them on every render
+// 🎯 Why: Re-creating formatting objects and calling .toLocaleString() inside high-frequency render loops (like WebSocket updates and animations) causes unnecessary CPU overhead.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing pre-configured formatter objects.
+const priceFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2 });
+const grandTotalFormatter = new Intl.NumberFormat('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const daDkFormatter = new Intl.NumberFormat('da-DK', { minimumFractionDigits: 2 });
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const volumeFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
 
 export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'info'|'warn'|'error') => void }) {
   const [showProModal, setShowProModal] = useState(false);
@@ -1415,7 +1424,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
@@ -1825,7 +1834,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         } else if (stream === `${symbol.toLowerCase()}@ticker`) {
           setDailyStats({
             changePercent: parseFloat(data.P),
-            volume: (parseFloat(data.v) * parseFloat(data.c)).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) + ' USDT',
+            volume: volumeFormatter.format(parseFloat(data.v) * parseFloat(data.c)) + ' USDT',
             high: parseFloat(data.h).toFixed(2),
             low: parseFloat(data.l).toFixed(2)
           });
@@ -4232,7 +4241,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                  <div>
                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Anslået Porteføljeværdi</span>
                                    <h4 className="text-2xl font-mono font-bold text-white tracking-tight">
-                                      ${grandTotal.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      ${grandTotalFormatter.format(grandTotal)}
                                    </h4>
                                  </div>
                                  <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ${walletData.isSimulated ? 'bg-cyan-950 text-cyan-400 border border-cyan-800/40' : 'bg-amber-950 text-amber-500 border border-amber-800/40'}`}>
@@ -4243,11 +4252,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
                                <div className="grid grid-cols-2 gap-4 border-t border-gray-800/60 pt-4 text-xs font-mono">
                                  <div>
                                    <span className="text-[9px] text-gray-500 block uppercase mb-0.5">Spot-Wallet</span>
-                                   <span className="text-gray-300 font-bold">${spotTotal.toLocaleString('da-DK', { minimumFractionDigits: 2 })}</span>
+                                   <span className="text-gray-300 font-bold">${daDkFormatter.format(spotTotal)}</span>
                                  </div>
                                  <div>
                                    <span className="text-[9px] text-gray-500 block uppercase mb-0.5">Earn / Opsparing</span>
-                                   <span className="text-gray-300 font-bold">${earnTotal.toLocaleString('da-DK', { minimumFractionDigits: 2 })}</span>
+                                   <span className="text-gray-300 font-bold">${daDkFormatter.format(earnTotal)}</span>
                                  </div>
                                </div>
                              </div>
