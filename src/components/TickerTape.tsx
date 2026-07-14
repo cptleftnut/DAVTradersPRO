@@ -8,6 +8,13 @@ interface TickerData {
   volume?: number;
 }
 
+// ⚡ Bolt: Cache Intl.NumberFormat instance outside the component to prevent recreating it on every render
+// 💡 What: Extract Intl.NumberFormat instantiation outside of the component map loop.
+// 🎯 Why: TickerTape maps over a large, duplicated array of tickers. Calling .toLocaleString() inside this loop
+// creates a new formatter object for every single ticker element on every render cycle, causing CPU overhead.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing a single pre-configured formatter object.
+const priceFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+
 export const TickerTape = React.memo(function TickerTape() {
   const [tickers, setTickers] = useState<TickerData[]>([]);
 
@@ -50,7 +57,7 @@ export const TickerTape = React.memo(function TickerTape() {
         {[...tickers, ...tickers].map((ticker, i) => (
           <div key={`${ticker.symbol}-${i}`} className="flex items-center space-x-2">
             <span className="text-gray-300 font-bold font-mono text-xs">{ticker.symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '')}/{ticker.symbol.endsWith('USDC') ? 'USDC' : (ticker.symbol.endsWith('USDT') ? 'USDT' : (ticker.symbol.endsWith('BTC') ? 'BTC' : (ticker.symbol.endsWith('ETH') ? 'ETH' : (ticker.symbol.endsWith('BNB') ? 'BNB' : (ticker.symbol.endsWith('EUR') ? 'EUR' : 'USDT')))))}</span>
-            <span className="text-white font-mono text-xs">${ticker.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
+            <span className="text-white font-mono text-xs">${priceFormatter.format(ticker.lastPrice)}</span>
             <span className={`flex items-center text-[10px] font-bold ${ticker.priceChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {ticker.priceChangePercent >= 0 ? <TrendingUp className="size-3 mr-0.5" /> : <TrendingDown className="size-3 mr-0.5" />}
               {ticker.priceChangePercent > 0 ? '+' : ''}{ticker.priceChangePercent.toFixed(2)}%
