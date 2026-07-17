@@ -1,3 +1,3 @@
-## 2024-07-09 - Accessible Close Buttons
-**Learning:** Raw clickable icons (e.g., `<X onClick={...} />`) are not keyboard-focusable or screen-reader friendly by default.
-**Action:** Always wrap interactive icons in a `<button>` element with an appropriate `aria-label` and `focus-visible` styling for accessible navigation and screen reader support.
+## 2024-05-24 - Screen Reader Compatibility for Custom Dropdowns
+**Learning:** Using `role="menu"` on a custom dropdown or action list implies to screen readers that the component supports arrow-key navigation (roving tabindex) according to ARIA authoring practices. If the component only relies on standard `Tab` navigation, this can cause confusion for screen reader users as their expected navigation patterns won't work.
+**Action:** When adding ARIA roles to custom action lists or simple dropdowns that rely on standard tab focus, use `role="group"` instead of `role="menu"` to provide structural context without falsely promising complex keyboard interaction patterns.

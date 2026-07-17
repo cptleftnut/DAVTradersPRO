@@ -46,6 +46,8 @@ export const QuickActionsMenu = () => {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className="flex flex-col gap-2 mb-4"
+            role="group"
+            id="quick-actions-menu"
           >
             {actions.map((action, index) => (
               <motion.button
@@ -54,9 +56,9 @@ export const QuickActionsMenu = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 onClick={action.action}
-                className="flex items-center gap-3 bg-gray-900/90 backdrop-blur-md text-gray-200 px-4 py-3 rounded-2xl shadow-xl border border-white/10 hover:bg-gray-800 hover:text-white transition-all text-xs font-bold uppercase tracking-wider"
+                className="flex items-center gap-3 bg-gray-900/90 backdrop-blur-md text-gray-200 px-4 py-3 rounded-2xl shadow-xl border border-white/10 hover:bg-gray-800 hover:text-white transition-all text-xs font-bold uppercase tracking-wider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
-                <action.icon className="size-4 text-amber-500" />
+                <action.icon className="size-4 text-amber-500" aria-hidden="true" />
                 {action.label}
               </motion.button>
             ))}
@@ -65,9 +67,13 @@ export const QuickActionsMenu = () => {
       </AnimatePresence>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-amber-500 text-black p-4 rounded-full shadow-lg hover:bg-amber-400 transition-all flex items-center justify-center hover:scale-105 active:scale-95"
+        className="bg-amber-500 text-black p-4 rounded-full shadow-lg hover:bg-amber-400 transition-all flex items-center justify-center hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+        aria-label={isOpen ? "Close quick actions menu" : "Open quick actions menu"}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        aria-controls={isOpen ? "quick-actions-menu" : undefined}
       >
-        {isOpen ? <X className="size-6" /> : <Plus className="size-6" />}
+        {isOpen ? <X className="size-6" aria-hidden="true" /> : <Plus className="size-6" aria-hidden="true" />}
       </button>
     </div>
   );
