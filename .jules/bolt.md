@@ -3,3 +3,7 @@
 **Action:** Always memoize dictionaries or lists of React elements (like `componentsMap`) in parent components using `useMemo()` if they are going to be re-evaluated on subsequent renders, to leverage React's capability to entirely skip re-rendering identical reference elements.## 2026-07-11 - Expensive string formatting in render loops
 **Learning:** Calling `Number.prototype.toLocaleString()` inside a React component's render loop (especially loops iterating over large arrays like Orderbook entries updated by WebSockets) is a significant hidden performance bottleneck, as it instantiates a new Intl formatter object on every call.
 **Action:** Always pre-instantiate `Intl.NumberFormat` instances outside the component scope and use their `.format()` method to reuse the object across renders.
+
+## 2023-10-27 - [Number Formatting Optimization in High-Frequency Paths]
+**Learning:** Calling `.toLocaleString()` inside high-frequency loops (like WebSocket `onmessage` handlers or `framer-motion` `useTransform` hooks) causes significant CPU overhead because it instantiates a new `Intl.NumberFormat` object on every call.
+**Action:** Always instantiate `Intl.NumberFormat` outside of the component or loop, and reuse its `.format()` method for rendering numbers in critical performance paths.

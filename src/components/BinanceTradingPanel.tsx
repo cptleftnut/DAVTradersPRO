@@ -118,6 +118,7 @@ import { TradeErrorLog } from './TradeErrorLog';
 import { ShieldAlert } from 'lucide-react';
 import { TradingPresetsManager, TradingPreset } from './TradingPresetsManager';
 import { WalletSummaryWidget } from './WalletSummaryWidget';
+
 import { PortfolioSummary } from './PortfolioSummary';
 import { TickerTape } from './TickerTape';
 import { P2PPaymentModal } from './P2PPaymentModal';
@@ -131,6 +132,13 @@ import { GeminiChat } from './GeminiChat';
 import { PortfolioRebalancer } from './PortfolioRebalancer';
 import { OrderBook } from './OrderBook';
 import { PortfolioDistribution } from './PortfolioDistribution';
+
+// ⚡ Bolt: Cache Intl.NumberFormat instances outside the component to prevent recreating them on every render
+// 🎯 Why: Re-creating formatting objects and calling .toLocaleString() inside high-frequency loops (WebSocket, useTransform animations)
+// was causing unnecessary CPU overhead and potential GC pauses.
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const compactVolumeFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+
 
 interface Trade {
   id: number;
@@ -1415,7 +1423,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
@@ -1825,7 +1833,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         } else if (stream === `${symbol.toLowerCase()}@ticker`) {
           setDailyStats({
             changePercent: parseFloat(data.P),
-            volume: (parseFloat(data.v) * parseFloat(data.c)).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) + ' USDT',
+            volume: compactVolumeFormatter.format(parseFloat(data.v) * parseFloat(data.c)) + ' USDT',
             high: parseFloat(data.h).toFixed(2),
             low: parseFloat(data.l).toFixed(2)
           });
