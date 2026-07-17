@@ -128,6 +128,13 @@ import { StrategyBacktester } from './StrategyBacktester';
 import { StockChart } from './StockChart';
 import { NewsFeed } from './NewsFeed';
 import { GeminiChat } from './GeminiChat';
+
+// ⚡ Bolt: Cache Intl.NumberFormat instances outside the component to prevent recreating them on every render
+// 🎯 Why: BinanceTradingPanel has frequent state updates from WebSockets and 60fps animations. Re-creating formatting objects and calling .toLocaleString()
+// inside useTransform or WebSocket handlers causes unnecessary CPU overhead and GC pressure.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing pre-configured formatter objects.
+const compactUsdtFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+const usdFormatterMinMax2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 import { PortfolioRebalancer } from './PortfolioRebalancer';
 import { OrderBook } from './OrderBook';
 import { PortfolioDistribution } from './PortfolioDistribution';
@@ -1415,7 +1422,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${usdFormatterMinMax2.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
@@ -1825,7 +1832,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         } else if (stream === `${symbol.toLowerCase()}@ticker`) {
           setDailyStats({
             changePercent: parseFloat(data.P),
-            volume: (parseFloat(data.v) * parseFloat(data.c)).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) + ' USDT',
+            volume: compactUsdtFormatter.format(parseFloat(data.v) * parseFloat(data.c)) + ' USDT',
             high: parseFloat(data.h).toFixed(2),
             low: parseFloat(data.l).toFixed(2)
           });
