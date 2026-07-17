@@ -182,6 +182,15 @@ interface BotState {
   maintenanceMode?: boolean;
 }
 
+export function getSafeBotState(state: BotState) {
+  if (!state) return state;
+  const safeState = { ...state };
+  delete safeState.userApiKey;
+  delete safeState.userApiSecret;
+  return safeState;
+}
+
+
 let botState: BotState = {
   isActive: false,
   symbol: "BTCUSDT",
@@ -667,14 +676,14 @@ app.post("/api/bot/maintenance", async (req, res) => {
       res.json({
         success: true,
         maintenanceMode: true,
-        botState,
+        botState: getSafeBotState(botState),
         closedOrders,
       });
     } else {
       console.log("[Maintenance] Deaktiverer vedligeholdelsestilstand...");
       botState.maintenanceMode = false;
       await saveBotState();
-      res.json({ success: true, maintenanceMode: false, botState });
+      res.json({ success: true, maintenanceMode: false, botState: getSafeBotState(botState) });
     }
   } catch (error: any) {
     res.status(500).json({
@@ -684,7 +693,7 @@ app.post("/api/bot/maintenance", async (req, res) => {
 });
 
 app.get("/api/bot/maintenance", (req, res) => {
-  res.json({ maintenanceMode: botState.maintenanceMode || false, botState });
+  res.json({ maintenanceMode: botState.maintenanceMode || false, botState: getSafeBotState(botState) });
 });
 
 async function getSymbolExchangeInfo(client: Spot, symbol: string) {
@@ -2983,7 +2992,7 @@ app.post("/api/bot/start", async (req, res) => {
       dcaAllocation,
       enableAutoStopLoss,
     );
-    res.json({ success: true, botState });
+    res.json({ success: true, botState: getSafeBotState(botState) });
   } catch (error: any) {
     if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
@@ -2999,7 +3008,7 @@ app.post("/api/bot/start", async (req, res) => {
 app.post("/api/bot/stop", async (req, res) => {
   try {
     await stopBot();
-    res.json({ success: true, botState });
+    res.json({ success: true, botState: getSafeBotState(botState) });
   } catch (error: any) {
     if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
@@ -3121,7 +3130,7 @@ app.post("/api/bot/update", async (req, res) => {
     );
   }
 
-  res.json({ success: true, botState });
+  res.json({ success: true, botState: getSafeBotState(botState) });
 });
 
 app.post("/api/bot/backtest", async (req, res) => {
@@ -3554,7 +3563,7 @@ app.get("/api/bot/diagnostics", async (req, res) => {
 
 app.get("/api/bot/state", async (req, res) => {
   await calculateDailyFee();
-  res.json(botState);
+  res.json(getSafeBotState(botState));
 });
 
 app.get("/api/market/scan", async (req, res) => {
