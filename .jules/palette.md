@@ -1,3 +1,3 @@
-## 2024-07-09 - Accessible Close Buttons
-**Learning:** Raw clickable icons (e.g., `<X onClick={...} />`) are not keyboard-focusable or screen-reader friendly by default.
-**Action:** Always wrap interactive icons in a `<button>` element with an appropriate `aria-label` and `focus-visible` styling for accessible navigation and screen reader support.
+## 2025-03-08 - GeminiChat Component Interactive A11y Pattern
+**Learning:** Icon-only buttons used for floating chat interfaces (like `GeminiChat.tsx`) often entirely omit `aria-label` bindings, making them invisible to screen readers while retaining focus outlines that confuse visual-keyboard users without text descriptions. Additionally, Tailwind's `focus-visible:` classes must be applied to all interactive form elements uniformly across the dialog to maintain a coherent keyboard interaction model.
+**Action:** Always ensure that every SVG-based icon button, especially toggle controls and submit buttons in temporary overlay dialogs, has an explicit `aria-label` describing its action and corresponding `focus-visible` styling indicating its interactive bounds.
