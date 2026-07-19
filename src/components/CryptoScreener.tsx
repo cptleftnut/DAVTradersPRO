@@ -32,6 +32,12 @@ export interface BinanceTicker24hr {
   count: number;
 }
 
+// ⚡ Bolt: Cache Intl.NumberFormat instances outside the component to prevent recreating them on every render
+// 🎯 Why: CryptoScreener renders a list of items and updates frequently (via interval). Re-creating formatting objects and calling .toLocaleString()
+// inside the map loop for every row was causing unnecessary CPU overhead during the render cycle.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing pre-configured formatter objects.
+const priceFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
 export function CryptoScreener() {
   const [data, setData] = useState<BinanceTicker24hr[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,10 +219,7 @@ export function CryptoScreener() {
                       $
                       {price < 0.01
                         ? price.toPrecision(4)
-                        : price.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 4,
-                          })}
+                        : priceFormatter.format(price)}
                     </td>
                     <td className="py-3 text-right">
                       <div
