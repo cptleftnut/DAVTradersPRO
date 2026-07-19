@@ -182,6 +182,11 @@ interface BotState {
   maintenanceMode?: boolean;
 }
 
+function sanitizeBotState(state: BotState): Partial<BotState> {
+  const { userApiKey, userApiSecret, ...safeState } = state;
+  return safeState;
+}
+
 let botState: BotState = {
   isActive: false,
   symbol: "BTCUSDT",
@@ -667,14 +672,14 @@ app.post("/api/bot/maintenance", async (req, res) => {
       res.json({
         success: true,
         maintenanceMode: true,
-        botState,
+        botState: sanitizeBotState(botState),
         closedOrders,
       });
     } else {
       console.log("[Maintenance] Deaktiverer vedligeholdelsestilstand...");
       botState.maintenanceMode = false;
       await saveBotState();
-      res.json({ success: true, maintenanceMode: false, botState });
+      res.json({ success: true, maintenanceMode: false, botState: sanitizeBotState(botState) });
     }
   } catch (error: any) {
     res.status(500).json({
@@ -684,7 +689,7 @@ app.post("/api/bot/maintenance", async (req, res) => {
 });
 
 app.get("/api/bot/maintenance", (req, res) => {
-  res.json({ maintenanceMode: botState.maintenanceMode || false, botState });
+  res.json({ maintenanceMode: botState.maintenanceMode || false, botState: sanitizeBotState(botState) });
 });
 
 async function getSymbolExchangeInfo(client: Spot, symbol: string) {
@@ -2930,7 +2935,7 @@ app.post("/api/bot/start", async (req, res) => {
         error: `You have an outstanding profit-share fee of ${botState.unpaidFee.toFixed(2)}. Please pay to unlock the AI Trader.`,
         feeRequired: true,
         amount: botState.unpaidFee,
-        botState,
+        botState: sanitizeBotState(botState),
       });
     }
 
@@ -2983,7 +2988,7 @@ app.post("/api/bot/start", async (req, res) => {
       dcaAllocation,
       enableAutoStopLoss,
     );
-    res.json({ success: true, botState });
+    res.json({ success: true, botState: sanitizeBotState(botState) });
   } catch (error: any) {
     if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
@@ -2999,7 +3004,7 @@ app.post("/api/bot/start", async (req, res) => {
 app.post("/api/bot/stop", async (req, res) => {
   try {
     await stopBot();
-    res.json({ success: true, botState });
+    res.json({ success: true, botState: sanitizeBotState(botState) });
   } catch (error: any) {
     if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
@@ -3121,7 +3126,7 @@ app.post("/api/bot/update", async (req, res) => {
     );
   }
 
-  res.json({ success: true, botState });
+  res.json({ success: true, botState: sanitizeBotState(botState) });
 });
 
 app.post("/api/bot/backtest", async (req, res) => {
@@ -3554,7 +3559,7 @@ app.get("/api/bot/diagnostics", async (req, res) => {
 
 app.get("/api/bot/state", async (req, res) => {
   await calculateDailyFee();
-  res.json(botState);
+  res.json(sanitizeBotState(botState));
 });
 
 app.get("/api/market/scan", async (req, res) => {
