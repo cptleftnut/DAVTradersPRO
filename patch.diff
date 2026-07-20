@@ -1,0 +1,22 @@
+--- src/components/QuickActionsMenu.tsx
++++ src/components/QuickActionsMenu.tsx
+@@ -45,7 +45,7 @@
+                 animate={{ opacity: 1, x: 0 }}
+                 transition={{ delay: index * 0.05 }}
+                 onClick={action.action}
+-                className="flex items-center gap-3 bg-gray-900/90 backdrop-blur-md text-gray-200 px-4 py-3 rounded-2xl shadow-xl border border-white/10 hover:bg-gray-800 hover:text-white transition-all text-xs font-bold uppercase tracking-wider"
++                className="flex items-center gap-3 bg-gray-900/90 backdrop-blur-md text-gray-200 px-4 py-3 rounded-2xl shadow-xl border border-white/10 hover:bg-gray-800 hover:text-white transition-all text-xs font-bold uppercase tracking-wider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+               >
+                 <action.icon className="size-4 text-amber-500" />
+                 {action.label}
+@@ -56,7 +56,9 @@
+       </AnimatePresence>
+       <button
+         onClick={() => setIsOpen(!isOpen)}
+-        className="bg-amber-500 text-black p-4 rounded-full shadow-lg hover:bg-amber-400 transition-all flex items-center justify-center hover:scale-105 active:scale-95"
++        aria-label="Toggle quick actions menu"
++        aria-expanded={isOpen}
++        className="bg-amber-500 text-black p-4 rounded-full shadow-lg hover:bg-amber-400 transition-all flex items-center justify-center hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-amber-500 focus-visible:ring-offset-gray-900"
+       >
+         {isOpen ? <X className="size-6" /> : <Plus className="size-6" />}
+       </button>

@@ -1,0 +1,15 @@
+--- src/components/RebalanceSuggestion.tsx
++++ src/components/RebalanceSuggestion.tsx
+@@ -45,6 +45,7 @@
+   };
+
+   const fetchWalletAndCalculate = async () => {
++    try {
+       setLoading(true);
+       if (!userProfile) return;
+
+@@ -274,3 +275,4 @@
+     </div>
+   );
+ };
++

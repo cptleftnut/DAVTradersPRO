@@ -1,0 +1,9 @@
+--- server.ts
++++ server.ts
+@@ -1711,6 +1711,7 @@
+                     status: "LIVE",
+                     actualAlloc,
+                     quoteAsset: targetQuote,
+                     assetName,
+                   });
+                   botState.activePositions =

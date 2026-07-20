@@ -17,7 +17,7 @@ export const RebalanceSuggestion: React.FC = () => {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState("Balanceret");
-  
+
   const targets = {
     "Høj Risiko": [
       { asset: "BTC", targetWeight: 45 },
@@ -48,21 +48,21 @@ export const RebalanceSuggestion: React.FC = () => {
       if (userApiKey) headers['x-binance-api-key'] = userApiKey;
       if (userApiSecret) headers['x-binance-api-secret'] = userApiSecret;
       if (auth.currentUser?.uid) headers['x-user-uid'] = auth.currentUser.uid;
-      
+
       const res = await fetch(`/api/binance/wallet?live=false`, { headers });
       if (res.ok) {
         const data = await res.json();
         setWalletData(data);
-        
+
         let newHoldings: Holding[] = [];
         let totalUsdtValue = 0;
-        
+
         const relevantAssets = data.spot.filter(
           (s: any) => parseFloat(s.free) > 0 || parseFloat(s.locked) > 0
         );
-        
+
         const activeTargets = targets[userProfile as keyof typeof targets] || targets["Balanceret"];
-        
+
         // Prepare promises for all missing prices
         const pricePromises: Promise<{asset: string, price: number}>[] = relevantAssets.map(async (s: any) => {
           if (s.asset !== "USDT" && s.asset !== "USDC") {
@@ -87,7 +87,7 @@ export const RebalanceSuggestion: React.FC = () => {
                 const json = await pRes.json();
                 return { asset: t.asset, price: parseFloat(json.price) };
               }
-            } catch (e) {} 
+            } catch (e) {}
           }
           return { asset: t.asset, price: 1 };
         });
@@ -102,6 +102,10 @@ export const RebalanceSuggestion: React.FC = () => {
         for (const {asset, price} of [...assetPrices, ...missingTargetPrices]) {
           priceMap.set(asset, price);
         }
+
+        for (const s of relevantAssets) {
+          const qty = parseFloat(s.free) + parseFloat(s.locked);
+          const price = priceMap.get(s.asset) ?? 1;
 
         const fetchAssetPrice = async (asset: string) => {
           if (asset === "USDT" || asset === "USDC") return 1;
@@ -160,14 +164,14 @@ export const RebalanceSuggestion: React.FC = () => {
                });
            }
         }
-        
+
         // Fetch prices for zero balance targets concurrently
         await Promise.all(newHoldings.map(async (h) => {
            if (h.value === 0 && h.asset !== "USDT" && h.asset !== "USDC") {
                h.price = await fetchAssetPrice(h.asset);
            }
         }));
-        
+
         if (totalUsdtValue > 0) {
           newHoldings = newHoldings
             .map((h) => ({
@@ -176,7 +180,7 @@ export const RebalanceSuggestion: React.FC = () => {
             }))
             .sort((a, b) => b.weight - a.weight);
         }
-        
+
         setHoldings(newHoldings);
       }
     } catch (e) {
@@ -198,12 +202,12 @@ export const RebalanceSuggestion: React.FC = () => {
   // calculate required trades
   const totalValue = holdings.reduce((sum, h) => sum + h.value, 0);
   const trades = [];
-  
+
   for (const h of holdings) {
     if (h.asset === "USDT" || h.asset === "USDC") continue;
     const targetValue = totalValue * (h.targetWeight / 100);
     const diffUsdt = targetValue - h.value;
-    
+
     if (Math.abs(diffUsdt) > 5) { // Threshold for trades
       trades.push({
         symbol: h.asset,
@@ -221,7 +225,7 @@ export const RebalanceSuggestion: React.FC = () => {
           <Scale className="size-4 text-emerald-400" /> Rebalance Suggestion
         </h3>
         <div className="flex items-center gap-2">
-           <select 
+           <select
              value={userProfile}
              onChange={(e) => setUserProfile(e.target.value)}
              className="bg-gray-900 border border-gray-800 text-xs font-bold text-gray-300 rounded px-2 py-1 outline-none focus:border-emerald-500"
@@ -235,7 +239,7 @@ export const RebalanceSuggestion: React.FC = () => {
            </button>
         </div>
       </div>
-      
+
       {loading ? (
         <div className="py-8 text-center text-xs text-gray-500">Beregner allokering...</div>
       ) : trades.length === 0 ? (
