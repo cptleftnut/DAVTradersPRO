@@ -13,6 +13,14 @@ const formatSymbol = (sym: string) => {
   return sym;
 };
 
+// ⚡ Bolt: Cache Intl.NumberFormat instances outside the component to prevent recreating them on every render
+// 🎯 Why: BinanceTradingPanel has high-frequency WebSocket updates and animations. Re-creating formatting objects and calling .toLocaleString()
+// inside frequent render cycles causes unnecessary CPU overhead.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing pre-configured formatter objects.
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const volumeFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+const priceFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2 });
+
 const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTakeProfit, globalStopLoss, onUpdate }: any) => {
     const asset = symbol.replace(/USDT|USDC|BTC|ETH|BNB|EUR/g, '');
     const quote = symbol.endsWith('USDC') ? 'USDC' : (symbol.endsWith('USDT') ? 'USDT' : (symbol.endsWith('BTC') ? 'BTC' : (symbol.endsWith('ETH') ? 'ETH' : (symbol.endsWith('BNB') ? 'BNB' : (symbol.endsWith('EUR') ? 'EUR' : 'USDT')))));
@@ -45,12 +53,12 @@ const ActivePositionCard = ({ pos, idx, symbol, allocation, lastPrice, globalTak
           <div className="space-y-1 font-mono text-[10px] text-gray-300">
              <div className="flex justify-between">
                 <span className="text-gray-500">Indgang:</span>
-                <span className="text-gray-200">${entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span className="text-gray-200">${priceFormatter.format(entryPrice)}</span>
              </div>
              <div className="flex justify-between">
                 <span className="text-gray-500">Nuværende:</span>
                 <span className="text-gray-200">
-                   ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                   ${priceFormatter.format(currentPrice)}
                 </span>
              </div>
              <div className="flex justify-between pt-1 border-t border-gray-800/40 mt-1 items-center">
@@ -1415,7 +1423,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
@@ -1825,7 +1833,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         } else if (stream === `${symbol.toLowerCase()}@ticker`) {
           setDailyStats({
             changePercent: parseFloat(data.P),
-            volume: (parseFloat(data.v) * parseFloat(data.c)).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) + ' USDT',
+            volume: volumeFormatter.format(parseFloat(data.v) * parseFloat(data.c)) + ' USDT',
             high: parseFloat(data.h).toFixed(2),
             low: parseFloat(data.l).toFixed(2)
           });

@@ -1,5 +1,3 @@
-## 2024-07-08 - React Re-rendering Bottleneck in Dashboard App
-**Learning:** Found an issue where all dashboard widgets (e.g. `BinanceTradingPanel`, `BacktestWidget`) were instantiated during every render of the main `App` component by generating a new `componentsMap` record of elements. This causes heavy layout calculations and high CPU usage especially during interactive features such as drag-and-drop operations, because React reconciles new object references for each component on every render.
-**Action:** Always memoize dictionaries or lists of React elements (like `componentsMap`) in parent components using `useMemo()` if they are going to be re-evaluated on subsequent renders, to leverage React's capability to entirely skip re-rendering identical reference elements.## 2026-07-11 - Expensive string formatting in render loops
-**Learning:** Calling `Number.prototype.toLocaleString()` inside a React component's render loop (especially loops iterating over large arrays like Orderbook entries updated by WebSockets) is a significant hidden performance bottleneck, as it instantiates a new Intl formatter object on every call.
-**Action:** Always pre-instantiate `Intl.NumberFormat` instances outside the component scope and use their `.format()` method to reuse the object across renders.
+## 2023-10-27 - Caching Intl.NumberFormat
+**Learning:** Re-creating `Intl.NumberFormat` instances and calling `.toLocaleString()` inside high-frequency WebSocket handlers or animation frames (e.g., `useTransform`) causes unnecessary CPU overhead.
+**Action:** Always instantiate `Intl.NumberFormat` outside the component and reuse it for frequent formatting tasks.
