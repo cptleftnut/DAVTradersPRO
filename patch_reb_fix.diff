@@ -1,0 +1,13 @@
+--- src/components/RebalanceSuggestion.tsx
++++ src/components/RebalanceSuggestion.tsx
+@@ -104,10 +104,6 @@
+           priceMap.set(asset, price);
+         }
+
+-        for (const s of relevantAssets) {
+-          const qty = parseFloat(s.free) + parseFloat(s.locked);
+-          const price = priceMap.get(s.asset) ?? 1;
+-
+         const fetchAssetPrice = async (asset: string) => {
+           if (asset === "USDT" || asset === "USDC") return 1;
+           try {
