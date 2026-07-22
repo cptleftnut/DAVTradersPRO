@@ -132,6 +132,12 @@ import { PortfolioRebalancer } from './PortfolioRebalancer';
 import { OrderBook } from './OrderBook';
 import { PortfolioDistribution } from './PortfolioDistribution';
 
+// ⚡ Bolt: Cache Intl.NumberFormat instances outside the component to prevent recreating them on every render
+// 🎯 Why: BinanceTradingPanel receives frequent high-frequency updates from WebSocket (@ticker). Re-creating formatting objects and calling .toLocaleString()
+// inside the onmessage handler for volume was causing unnecessary CPU overhead.
+// 📊 Impact: Significantly reduces CPU usage during high-frequency WebSocket updates by reusing pre-configured formatter object.
+const compactVolumeFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+
 interface Trade {
   id: number;
   price: string;
@@ -1825,7 +1831,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
         } else if (stream === `${symbol.toLowerCase()}@ticker`) {
           setDailyStats({
             changePercent: parseFloat(data.P),
-            volume: (parseFloat(data.v) * parseFloat(data.c)).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) + ' USDT',
+            volume: compactVolumeFormatter.format(parseFloat(data.v) * parseFloat(data.c)) + ' USDT',
             high: parseFloat(data.h).toFixed(2),
             low: parseFloat(data.l).toFixed(2)
           });
