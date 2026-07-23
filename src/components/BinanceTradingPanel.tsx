@@ -236,6 +236,10 @@ const mergePositionsLists = (prev: any[], next: any[]) => {
   });
 };
 
+// ⚡ Bolt: Cache Intl.NumberFormat instance outside the component
+// 🎯 Why: avoid instantiating it inside 60fps Framer Motion callbacks
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'info'|'warn'|'error') => void }) {
   const [showProModal, setShowProModal] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -1415,7 +1419,8 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  // ⚡ Bolt: Reused pnlFormatter instead of .toLocaleString() to prevent GC thrashing and save CPU frames in animation hook
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
