@@ -104,7 +104,11 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800/60 sticky top-0 bg-[#181a20] z-10">
-          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+          <button
+            onClick={onClose}
+            aria-label="Luk"
+            className="p-2 hover:bg-gray-800 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
+          >
             <X className="size-5 text-gray-400" />
           </button>
           <div className="font-bold flex items-center justify-center gap-2">
@@ -124,8 +128,9 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Binance API Nøgle</label>
+                  <label htmlFor="binance-api-key" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Binance API Nøgle</label>
                   <input
+                    id="binance-api-key"
                     type="text"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
@@ -134,8 +139,9 @@ export function AiProModal({ onClose, userUid, userEmail }: { onClose: () => voi
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Binance API Secret</label>
+                  <label htmlFor="binance-api-secret" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Binance API Secret</label>
                   <input
+                    id="binance-api-secret"
                     type="password"
                     value={apiSecret}
                     onChange={(e) => setApiSecret(e.target.value)}
