@@ -147,6 +147,13 @@ interface PriceAlert {
   triggered: boolean;
 }
 
+// ⚡ Bolt: Cache Intl.NumberFormat instance outside the component to prevent recreating it on every render
+// 🎯 Why: useTransform runs its callback very frequently (e.g., 60 times a second during animations).
+// Re-creating the formatting object and calling .toLocaleString() on each frame is an expensive
+// operation that causes unnecessary CPU overhead.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing a pre-configured formatter object.
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export interface BotOrder {
   id: string;
   symbol: string;
@@ -1415,7 +1422,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
