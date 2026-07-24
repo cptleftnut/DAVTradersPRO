@@ -2,3 +2,8 @@
 **Vulnerability:** Missing rate limiting, CORS configuration, and secure HTTP headers in Express.
 **Learning:** By default, Express applications are susceptible to DoS attacks via brute force due to a lack of rate limiting. Furthermore, default settings without CORS configuration can open endpoints to unauthorized cross-origin access. Missing basic HTTP security headers also exposes the application to various injection and misconfiguration vulnerabilities.
 **Prevention:** Use established middleware such as `express-rate-limit`, `cors` with strict origins, and `helmet` for basic header protection in all Express endpoints.
+
+## 2024-05-18 - Prevent Sensitive Data Leakage in Bot State API Responses
+**Vulnerability:** The server was exposing sensitive Binance API keys (`userApiKey` and `userApiSecret`) by serializing and returning the entire global `botState` object in HTTP API responses (e.g., `/api/bot/state`).
+**Learning:** Returning raw application state structures directly to the client often leaks sensitive server-side secrets or tokens.
+**Prevention:** Always implement a dedicated state sanitizer function (e.g., `getSafeBotState()`) that explicitly omits sensitive credentials before returning state objects in API endpoints.
