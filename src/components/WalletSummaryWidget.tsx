@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { GripVertical, ChevronLeft, ChevronRight, Wallet, PieChart as PieChartIcon, ArrowUpRight, ShieldCheck, Zap, QrCode } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 

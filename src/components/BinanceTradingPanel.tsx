@@ -104,6 +104,11 @@ import { AiAutopilot } from './AiAutopilot';
 import { MacroTerminal } from './MacroTerminal';
 import { NeuralOrderFlow } from './NeuralOrderFlow';
 import { motion, useSpring, useTransform, AnimatePresence } from 'motion/react';
+
+// ⚡ Bolt: Cache Intl.NumberFormat instance outside the component to prevent recreating it on every render frame
+// 🎯 Why: Calling .toLocaleString() inside a 60fps useTransform callback creates a major CPU bottleneck by constantly recreating formatter objects.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage during UI animations.
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 import { toast } from 'sonner';
 import { AreaChart, Area, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { savePnlToCalendar } from '../lib/calendar';
@@ -1415,7 +1420,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
