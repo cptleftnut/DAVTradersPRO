@@ -301,6 +301,12 @@ async function loadBotState() {
   }
 }
 
+// Sentinel: Security enhancement to prevent sensitive API keys from leaking to the frontend
+function getSanitizedBotState() {
+  const { userApiKey, userApiSecret, ...safeState } = botState;
+  return safeState;
+}
+
 let botStateSaveTimeout: NodeJS.Timeout | null = null;
 async function saveBotState() {
   if (botStateSaveTimeout) return;
@@ -674,7 +680,7 @@ app.post("/api/bot/maintenance", async (req, res) => {
       console.log("[Maintenance] Deaktiverer vedligeholdelsestilstand...");
       botState.maintenanceMode = false;
       await saveBotState();
-      res.json({ success: true, maintenanceMode: false, botState });
+      res.json({ success: true, maintenanceMode: false, botState: getSanitizedBotState() });
     }
   } catch (error: any) {
     res.status(500).json({
@@ -684,7 +690,7 @@ app.post("/api/bot/maintenance", async (req, res) => {
 });
 
 app.get("/api/bot/maintenance", (req, res) => {
-  res.json({ maintenanceMode: botState.maintenanceMode || false, botState });
+  res.json({ maintenanceMode: botState.maintenanceMode || false, botState: getSanitizedBotState() });
 });
 
 async function getSymbolExchangeInfo(client: Spot, symbol: string) {
@@ -2983,7 +2989,7 @@ app.post("/api/bot/start", async (req, res) => {
       dcaAllocation,
       enableAutoStopLoss,
     );
-    res.json({ success: true, botState });
+    res.json({ success: true, botState: getSanitizedBotState() });
   } catch (error: any) {
     if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
@@ -2999,7 +3005,7 @@ app.post("/api/bot/start", async (req, res) => {
 app.post("/api/bot/stop", async (req, res) => {
   try {
     await stopBot();
-    res.json({ success: true, botState });
+    res.json({ success: true, botState: getSanitizedBotState() });
   } catch (error: any) {
     if (isQuotaError(error)) {
       console.warn("Gemini API Rate limit hit (429)");
@@ -3121,7 +3127,7 @@ app.post("/api/bot/update", async (req, res) => {
     );
   }
 
-  res.json({ success: true, botState });
+  res.json({ success: true, botState: getSanitizedBotState() });
 });
 
 app.post("/api/bot/backtest", async (req, res) => {
@@ -3554,7 +3560,7 @@ app.get("/api/bot/diagnostics", async (req, res) => {
 
 app.get("/api/bot/state", async (req, res) => {
   await calculateDailyFee();
-  res.json(botState);
+  res.json(getSanitizedBotState());
 });
 
 app.get("/api/market/scan", async (req, res) => {
