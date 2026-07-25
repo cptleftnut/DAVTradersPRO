@@ -236,6 +236,9 @@ const mergePositionsLists = (prev: any[], next: any[]) => {
   });
 };
 
+
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'info'|'warn'|'error') => void }) {
   const [showProModal, setShowProModal] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -1415,7 +1418,11 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  // ⚡ Bolt: Cache Intl.NumberFormat instance for 60fps animations
+  // 🎯 Why: The useTransform callback runs every frame during the PnL spring animation.
+  // Calling toLocaleString inside this 60fps loop instantiates a new formatter object continuously, causing CPU spikes and jank.
+  // 📊 Impact: Prevents memory churn and layout calculation overhead during active PnL changes by reusing the formatter.
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
