@@ -108,6 +108,12 @@ import { toast } from 'sonner';
 import { AreaChart, Area, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { savePnlToCalendar } from '../lib/calendar';
 import { initAuth, googleSignIn, logout, getAccessToken, db, auth as firebaseAuth } from '../lib/auth';
+
+// ⚡ Bolt: Cache Intl.NumberFormat instance outside the component to prevent recreating it on every render/frame
+// 🎯 Why: This formatter is used inside a 60fps useTransform callback. Re-creating formatting objects and calling .toLocaleString()
+// inside an animation loop causes unnecessary CPU overhead.
+// 📊 Impact: Significantly reduces CPU usage and GC pressure during PnL counter animations.
+const pnlDisplayFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { MarketScanner } from './MarketScanner';
 import { speakTradeAction } from '../lib/speech';
@@ -1415,7 +1421,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlDisplayFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
