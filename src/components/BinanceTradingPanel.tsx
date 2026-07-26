@@ -107,6 +107,11 @@ import { motion, useSpring, useTransform, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { AreaChart, Area, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { savePnlToCalendar } from '../lib/calendar';
+
+// ⚡ Bolt: Cache Intl.NumberFormat instance outside the component to prevent recreating it on every render
+// 🎯 Why: Avoids calling .toLocaleString() inside frequent React render loops and 60fps Framer Motion callbacks
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing pre-configured formatter objects.
+const pnlDisplayFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 import { initAuth, googleSignIn, logout, getAccessToken, db, auth as firebaseAuth } from '../lib/auth';
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { MarketScanner } from './MarketScanner';
@@ -1415,7 +1420,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlDisplayFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
