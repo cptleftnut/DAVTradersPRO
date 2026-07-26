@@ -91,7 +91,14 @@ function WatchlistItem({ ticker, onRemove, sentimentScore }: { key?: any, ticker
           </div>
         ) : null}
       </div>
-      <button onClick={() => onRemove(ticker)} className="text-gray-600 hover:text-rose-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"><Trash2 size={16}/></button>
+      <button
+        onClick={() => onRemove(ticker)}
+        className="text-gray-600 hover:text-rose-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded p-1"
+        aria-label={`Fjern ${ticker} fra huskeliste`}
+        title={`Fjern ${ticker} fra huskeliste`}
+      >
+        <Trash2 size={16}/>
+      </button>
     </motion.li>
   );
 }
@@ -141,13 +148,20 @@ export function Watchlist({ filterAsset, analysisHistory = [] }: { filterAsset?:
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <label htmlFor="ticker-input" className="sr-only">Skriv aktie symbol</label>
         <input 
+          id="ticker-input"
           value={newTicker} 
           onChange={(e) => setNewTicker(e.target.value)} 
           className="flex-1 bg-gray-950 border border-gray-800 text-white rounded-2xl px-4 py-3 focus:ring-2 focus:ring-cyan-500 focus:border-transparent font-mono text-sm transition-all" 
           placeholder="Skriv aktie symbol..."
         />
-        <button onClick={addTicker} className="bg-cyan-600/20 text-cyan-400 border border-cyan-800/50 hover:bg-cyan-500 hover:text-gray-950 px-6 py-3 rounded-2xl transition-all flex justify-center items-center font-bold uppercase text-xs tracking-widest"><Plus size={16} className="mr-2"/> Tilføj</button>
+        <button
+          onClick={addTicker}
+          className="bg-cyan-600/20 text-cyan-400 border border-cyan-800/50 hover:bg-cyan-500 hover:text-gray-950 px-6 py-3 rounded-2xl transition-all flex justify-center items-center font-bold uppercase text-xs tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+        >
+          <Plus size={16} className="mr-2"/> Tilføj
+        </button>
       </div>
       <ul className="space-y-3">
         <AnimatePresence mode="popLayout">
