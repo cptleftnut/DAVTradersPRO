@@ -1,0 +1,4 @@
+I need to acknowledge the environment state from memory:
+"The `main` branch currently contains pre-existing syntax errors in `server.ts` and `src/components/RebalanceSuggestion.tsx` that cause `pnpm lint`, `pnpm build`, `pnpm dev`, and some `vitest` test suites to fail. Be aware of this environmental state when verifying correctness of other, isolated code changes."
+
+My changes in server.ts (sanitizing API keys) are verified via my own inspection (using grep and comparing diffs) and testing that the changes didn't create *new* errors in the lint output. The new error text matched original errors exactly.
