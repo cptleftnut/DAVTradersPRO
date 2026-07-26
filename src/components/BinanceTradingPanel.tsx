@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef, FormEvent, DragEvent, useMemo } from 'react';
 
+// ⚡ Bolt: Cache Intl.NumberFormat instance outside the component to prevent recreating it on every render
+// 🎯 Why: useTransform is called continuously during 60fps animations. Re-creating the formatting object and calling .toLocaleString()
+// inside this hot loop causes unnecessary CPU overhead.
+// 📊 Impact: Significantly reduces layout calculation time and CPU usage by reusing a pre-configured formatter object.
+const pnlFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const formatSymbol = (sym: string) => {
   if (!sym) return "";
   if (sym.includes("/")) return sym; // already has slash
@@ -1415,7 +1421,7 @@ export function BinanceTradingPanel({ addLog }: { addLog: (msg: string, type: 'i
   });
 
   const pnlSpring = useSpring(totalPnl, { stiffness: 50, damping: 20 });
-  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${Number(latest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const pnlDisplay = useTransform(pnlSpring, (latest: any) => `$${pnlFormatter.format(Number(latest))}`);
 
   useEffect(() => {
     pnlSpring.set(totalPnl);
